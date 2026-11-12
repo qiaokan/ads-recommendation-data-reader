@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Learn exactly what goes into an ads or recommendation model: raw logs, training records, embeddings, history sequences, labels and tensors. A complete beginner guide with published examples."><meta name="theme-color" content="#1c3b3c"><title>Ads and Recommendation Training Data — A Beginner Reader</title><link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css"><script src="app.js" defer></script></head>
+<body><a class="skip" href="#reading">Skip to the guide</a><header><a class="brand" href="#chapter-1"><span class="brandmark">D</span>THE DATA READER</a><nav aria-label="Project links"><a href="https://computational-advertising-reader.vercel.app">Advertising reader ↗</a><a href="https://github.com/qiaokan/ads-recommendation-data-reader">GitHub ↗</a></nav></header>
+<main><div class="hero"><div><p class="eyebrow">ADS & RECOMMENDATIONS / FROM FIRST PRINCIPLES</p><h1>What goes<br>into the model?</h1><p class="lede">From a person seeing an ad to the numbers a neural network learns from. One complete example, every important definition, and real published data.</p><div class="hero-links"><a class="primary" href="#chapter-1">Start reading <span aria-hidden="true">→</span></a><a href="GUIDE.md" download>Download the guide ↓</a></div></div><div class="hero-aside"><strong>01</strong><span>impression followed end to end</span><strong>09</strong><span>chapters, plus a glossary</span><strong>0</strong><span>recommendation background required</span></div></div>
+<div class="intro-strip"><span>RAW EVENTS</span><b aria-hidden="true">→</b><span>TRAINING RECORDS</span><b aria-hidden="true">→</b><span>MODEL TENSORS</span><p>Three representations.<br>The same prediction problem.</p></div>
+<aside class="inspector" aria-labelledby="inspector-heading"><div class="inspector-top"><div><p class="eyebrow">WORKED EXAMPLE · SYNTHETIC</p><h2 id="inspector-heading">Follow one impression</h2></div><span class="badge">U7 × A42</span></div><p>Same user, candidate, and context. Change when the outcome is known and inspect each representation.</p><div class="lab-controls"><label>Outcome state<select id="outcome"><option value="clicked">Clicked within the window</option><option value="not-clicked">No click after the window</option><option value="pending">Observation window still open</option></select></label><label>Representation<select id="representation"><option value="raw">Raw impression</option><option value="record">Training record</option><option value="tensor">Encoded batch</option></select></label></div><p id="inspector-note" role="status"></p><pre><code id="inspector-output"></code></pre><p class="lab-footnote">Encodings are declared teaching values, not a trained model. The label is separate from the features.</p></aside>
+<div class="reader-layout"><aside class="toc"><button id="menu-toggle" type="button" aria-expanded="false" aria-controls="chapter-nav">Contents <span aria-hidden="true">☰</span></button><div id="chapter-nav"><p class="eyebrow">YOUR READING PATH</p><nav aria-label="Chapters"><a href="#chapter-1" data-chapter="0"><span>01</span>What one training example means</a><a href="#chapter-2" data-chapter="1"><span>02</span>From raw events to training rows</a><a href="#chapter-3" data-chapter="2"><span>03</span>Turning feature values into model inputs</a><a href="#chapter-4" data-chapter="3"><span>04</span>A complete worked example</a><a href="#chapter-5" data-chapter="4"><span>05</span>Published Criteo and DIN examples</a><a href="#chapter-6" data-chapter="5"><span>06</span>How data changes across recommendation tasks</a><a href="#chapter-7" data-chapter="6"><span>07</span>Labels sampling and evaluation</a><a href="#chapter-8" data-chapter="7"><span>08</span>A practical starting schema</a><a href="#chapter-9" data-chapter="8"><span>09</span>Sources and next steps</a><a href="#glossary" data-chapter="9"><span>A</span>Glossary and self check</a></nav><div class="reading-tools"><button id="print-guide" type="button">Print or save as PDF</button><a href="reviews/claude-review.md">Claude review record ↗</a></div></div></aside><div id="reading" tabindex="-1"><div class="reading-bar"><span id="current-chapter">CHAPTER 01</span><span id="reading-progress">1 / 10</span></div><div class="progress-track"><div id="progress-fill"></div></div><section class="chapter" id="chapter-1" data-title="What one training example means"><p class="eyebrow">CHAPTER 01</p><h2 id="what-one-training-example-means">What one training example means</h2>
+<p>An ads or recommendation model learns from past interactions so that it can score a future opportunity: <strong>given this user, this candidate item, and this situation, how likely is a particular outcome?</strong> This guide starts with click prediction, then explains retrieval, ratings, conversions, and sequence prediction. You need no prior knowledge of recommendation systems. A <strong>neural network</strong> is a model with adjustable numbers called <strong>parameters</strong>; training changes those numbers to reduce an error score called the <strong>loss</strong>. Technical terms are explained as they appear and collected in the glossary.</p>
+<p>An <strong>item</strong> is the thing being recommended: an ad, product, video, article, or song. A <strong>candidate</strong> is an item being considered. An <strong>impression</strong> is a logged showing of an item under your system's exposure definition. A <strong>click</strong> is one possible response to that impression. <strong>Serving</strong> means running a trained model on live requests.</p>
+<p>For a click prediction model, one training example usually describes <strong>one item shown to one user at one time</strong>, plus whether that showing led to at least one valid click within a defined window. <strong>CTR</strong>, or <strong>click-through rate</strong>, is clicked impressions divided by impressions under that binary-label rule. <strong>pCTR</strong> is the model's predicted probability of a click.</p>
+<table>
+<thead>
+<tr>
+<th>User</th>
+<th>Candidate shown</th>
+<th>Situation at display time</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>U7</td>
+<td>Running shoe ad A42</td>
+<td>Mobile home feed at 10 AM UTC</td>
+<td>Clicked</td>
+</tr>
+<tr>
+<td>U7</td>
+<td>Camera ad A81</td>
+<td>Mobile home feed at 10 AM UTC</td>
+<td>Did not click</td>
+</tr>
+<tr>
+<td>U9</td>
+<td>Running shoe ad A42</td>
+<td>Desktop at 8 PM UTC</td>
+<td>Did not click</td>
+</tr>
+</tbody>
+</table>
+<p>These rows are invented teaching examples. The same user and the same ad can occur many times; each showing is a distinct event.</p>
+<p>The information used to make a prediction is called the <strong>features</strong>, often written as <code>x</code>. The answer used to teach the model is the <strong>label</strong>, often written as <code>y</code>. For click prediction, <code>y=1</code> means clicked and <code>y=0</code> means not clicked under the chosen rule.</p>
+<pre><code class="language-text">x = user information + candidate information + context + earlier behavior
+y = observed outcome after this opportunity
+
+model(x) = estimated probability of a click
+</code></pre>
+<p>An output of 0.03 is intended as a 3% click probability. A <strong>calibrated</strong> model is one whose probabilities agree with observed frequencies: across many comparable opportunities scored near 0.03, roughly 3% should receive a click. Calibration must be checked on the population where the model is used; sampled training data can distort it. An individual prediction is not a guarantee.</p>
+<p>There are three distinct representations to keep straight:</p>
+<table>
+<thead>
+<tr>
+<th>Representation</th>
+<th>What it contains</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Raw logs</td>
+<td>Events such as impressions, clicks, purchases, and page views</td>
+</tr>
+<tr>
+<td>Training records</td>
+<td>Joined features, labels, and bookkeeping for each example</td>
+</tr>
+<tr>
+<td>Model tensors</td>
+<td>Numerical arrays with specified shapes and types that the model computes on</td>
+</tr>
+</tbody>
+</table>
+<p>A CSV file, a JSON record, and a Parquet table can all represent the same logical examples. The file extension does not determine what the model learns, provided the loader preserves types and values. For example, a CSV reader must not discard leading zeros in IDs or silently conflate missing values with empty strings. CSV is a text table format; JSON represents named fields and lists; Parquet stores typed table columns efficiently.</p>
+<div class="pipeline" aria-label="Training data pipeline"><span>Raw events</span><b aria-hidden="true">→</b><span>Training records</span><b aria-hidden="true">→</b><span>Encoded batches</span><b aria-hidden="true">→</b><span>Model + labels</span></div></section>
+<section class="chapter" id="chapter-2" data-title="From raw events to training rows"><p class="eyebrow">CHAPTER 02</p><h2 id="from-raw-events-to-training-rows">From raw events to training rows</h2>
+<h2 id="the-information-usually-lives-in-several-tables">The information usually lives in several tables</h2>
+<p>A web application does not normally log a complete neural-network input whenever someone clicks. It records different events and maintains separate information about users and items. A training pipeline combines them.</p>
+<p>The following tables are an invented miniature shopping app.</p>
+<p><strong>Impressions</strong></p>
+<pre><code class="language-text">impression_id  request_id  user_id  item_id  shown_at              surface
+imp_101        req_10      U7       A42      2026-11-01T10:00:00Z  home_feed
+imp_102        req_10      U7       A81      2026-11-01T10:00:00Z  home_feed
+</code></pre>
+<p><strong>Requests</strong></p>
+<pre><code class="language-text">request_id  scored_at             device  surface
+req_10      2026-11-01T09:59:58Z  mobile  home_feed
+</code></pre>
+<p><strong>Clicks</strong></p>
+<pre><code class="language-text">impression_id  clicked_at
+imp_101        2026-11-01T10:00:05Z
+</code></pre>
+<p><strong>Item information available at the time</strong></p>
+<pre><code class="language-text">item_id  category  price   valid_from            valid_to
+A42      shoes     80.00   2026-10-20T00:00:00Z  2026-11-01T12:00:00Z
+A42      shoes     65.00   2026-11-01T12:00:00Z  (open)
+A81      cameras   300.00  2026-10-20T00:00:00Z  (open)
+</code></pre>
+<p><strong>Earlier user behavior</strong></p>
+<pre><code class="language-text">user_id  item_id  category  action  occurred_at           available_at
+U7       A12      shoes     view    2026-11-01T09:40:00Z  2026-11-01T09:40:02Z
+U7       A18      shoes     view    2026-11-01T09:50:00Z  2026-11-01T09:50:02Z
+U7       A33      books     view    2026-11-01T09:55:00Z  2026-11-01T09:55:02Z
+</code></pre>
+<h2 id="how-one-row-is-assembled">How one row is assembled</h2>
+<p>A <strong>request</strong> asks the system to choose recommendations. The model scores req_10 at 09:59:58; the two impressions are logged as shown at 10:00:00. For imp_101, attach the information about U7 and A42, the device and surface from the request, and behavior available before 09:59:58. The training record stores the request's scored_at as prediction_time. All timestamps here use UTC, a common worldwide time reference; the Z suffix marks UTC. After the click observation window closes, attach the label.</p>
+<p>For this example, assume a 30-minute click window starting at shown_at, with the start included and end excluded. Allow another five minutes for click logs to arrive; both labels are final at 10:35. A <strong>positive</strong> example has label 1; a <strong>negative</strong> example has label 0. The valid click at 10:00:05 makes imp_101 positive. With no valid attributed click in its window, imp_102 is negative after finalization. These durations are teaching assumptions, not universal rules. Multiple valid clicks on one impression still produce one binary label.</p>
+<p><strong>Attribution</strong> is the rule assigning an outcome to an impression or click. <strong>Deduplication</strong> removes repeated copies of the same event; it must not erase distinct showings.</p>
+<p>Join response events using an impression identifier or an explicitly defined attribution rule. Joining on user ID and item ID alone can attach one click to several different showings.</p>
+<h2 id="the-time-boundary-is-part-of-the-format">The time boundary is part of the format</h2>
+<p>For the 10:00 impression scored at 09:59:58:</p>
+<ul>
+<li>
+<p>Features must represent information the scoring system could have used at its decision time.</p>
+</li>
+<li>
+<p>Historical behavior must stop before that decision.</p>
+</li>
+<li>
+<p>The response label can use later events inside its specified window.</p>
+</li>
+<li>
+<p>A count such as “clicks in the last seven days” must be computed as of that decision, not as of the day you build the dataset.</p>
+</li>
+</ul>
+<p>Including the 10:00:05 click in the history used to predict that same click is <strong>data leakage</strong>: the answer has slipped into the question.</p>
+<p>Time matters for item and user metadata too. If an item's price changed at noon, the 10:00 training row should not silently use the noon price. Delayed event arrival also matters: a behavior that occurred at 09:59:00 but reached your system at 10:02 was unavailable when the 10:00 impression was scored at 09:59:58.</p>
+<p>Matching records across tables is a <strong>join</strong>. A <strong>point-in-time join</strong> selects information valid and available at the scoring cutoff. In this example, require both occurred_at &lt; scored_at and available_at &lt; scored_at for history. Pick the item version whose interval includes scored_at: valid_from is inclusive and valid_to exclusive. The metadata table assumes each version was available from valid_from; if corrections arrive later, also record when each version became available.</p>
+<p>Fields used for joining and auditing do not automatically become model features. Keep <code>impression_id</code> to identify the event; do not blindly feed a unique event identifier into the neural network.</p></section>
+<section class="chapter" id="chapter-3" data-title="Turning feature values into model inputs"><p class="eyebrow">CHAPTER 03</p><h2 id="turning-feature-values-into-model-inputs">Turning feature values into model inputs</h2>
+<h2 id="categorical-features-identify-things">Categorical features identify things</h2>
+<p>User IDs, item IDs, categories, and device types are usually categorical. Their numerical spelling does not imply numerical distance: item 100 is not “twice” item 50.</p>
+<p>A vocabulary maps each category to an integer index. An <strong>embedding table</strong> then maps each index to a small vector of learned numbers. Here is an invented mapping:</p>
+<pre><code class="language-text">category vocabulary
+PAD     -&gt; 0
+UNKNOWN -&gt; 1
+shoes   -&gt; 2
+books   -&gt; 3
+cameras -&gt; 4
+
+Illustrative learned embedding for shoes:
+2 -&gt; [0.12, -0.40, 0.08, 0.31]
+</code></pre>
+<p>The vector is a model parameter, learned during training. You do not manually write “0.12” into every raw shoes record. Raw records store the category; encoding produces an index; the model looks up its vector.</p>
+<p>Each feature normally has its own vocabulary and embedding table. User index 2 and category index 2 are unrelated. A candidate item and a history item often share both a vocabulary and an embedding table. Shared indices alone do not ensure shared vectors: separate embedding tables can learn different vectors for the same index.</p>
+<p>Reserve a way to represent unseen values, often called <strong>unknown</strong> or <strong>out of vocabulary</strong>. A new item can have an unknown item ID while still supplying useful category, price, and content features.</p>
+<p>For very large vocabularies, <strong>feature hashing</strong> maps values into a fixed number of buckets. It saves vocabulary management but permits collisions: different values may share a bucket.</p>
+<h2 id="numerical-features-measure-quantities">Numerical features measure quantities</h2>
+<p>Price, recent impression count, elapsed time, and video duration are numerical. They generally become floating-point values.</p>
+<p>Possible transformations include dividing by a scale, standardizing using a training-set mean and standard deviation, or applying <code>log(1+x)</code> to a nonnegative count. Choose transformations for the feature's meaning; there is no mandatory universal normalization.</p>
+<p>Missing and zero are different facts. “Price unavailable” is not the same as “free.” You can use a default value plus a separate missing-value indicator.</p>
+<h2 id="history-features-contain-lists">History features contain lists</h2>
+<p>A user's recent interactions form a variable-length list. A model batch (a group of examples processed together) often pads lists to a maximum length and supplies a length or mask identifying the real entries:</p>
+<pre><code class="language-text">Actual history:        [A12, A18, A33]
+Encoded and padded:   [ 12,  18,  33, 0, 0]
+Valid-entry mask:     [  1,   1,   1, 0, 0]
+Length:               3
+</code></pre>
+<p>Here the latest L=5 events are kept, ordered oldest first, and padded on the right. L is the maximum retained history length. Zero is reserved for padding; it cannot identify a normal item. The mask marks valid entries: 1/0 and True/False are two common representations.</p>
+<p>If you include item IDs, categories, actions, and timestamps for each event, keep their positions aligned. The second category must describe the second item. For a first implementation, retain the latest L events in a documented order.</p>
+<p><strong>Providing an ordered list does not by itself make a model order-sensitive.</strong> A simple sum or average discards ordering. The <strong>Deep Interest Network (DIN)</strong> model, introduced later, weights historical behaviors by relevance to the candidate. Its weighted sum also discards order unless order-related features are added. Other sequence models can use positions or timestamps; a recurrent model updates a running summary as it processes each event.</p>
+<h2 id="text-and-images-are-optional-inputs">Text and images are optional inputs</h2>
+<p>An item's title can become text tokens or a vector from a text encoder. An image can become pixels or a vector from an image encoder. These complement IDs, especially for unfamiliar items. They are not required to understand or train a basic CTR model.</p>
+<p>TensorFlow's <a href="https://www.tensorflow.org/recommenders/examples/featurization">feature preprocessing tutorial</a> provides concrete examples of processing IDs, numerical values, and text. Keep the same preprocessing definitions for training and live predictions; an index must mean the same thing in both places.</p></section>
+<section class="chapter" id="chapter-4" data-title="A complete worked example"><p class="eyebrow">CHAPTER 04</p><h2 id="a-complete-worked-example">A complete worked example</h2>
+<h2 id="a-human-readable-training-record">A human readable training record</h2>
+<p>The following JSON is an invented teaching schema for <code>imp_101</code>. It makes the feature boundary explicit.</p>
+<pre><code class="language-json">{
+  &quot;metadata&quot;: {
+    &quot;impression_id&quot;: &quot;imp_101&quot;,
+    &quot;request_id&quot;: &quot;req_10&quot;,
+    &quot;prediction_time&quot;: &quot;2026-11-01T09:59:58Z&quot;,
+    &quot;shown_at&quot;: &quot;2026-11-01T10:00:00Z&quot;,
+    &quot;label_finalized_at&quot;: &quot;2026-11-01T10:35:00Z&quot;
+  },
+  &quot;features&quot;: {
+    &quot;user_id&quot;: &quot;U7&quot;,
+    &quot;candidate_item_id&quot;: &quot;A42&quot;,
+    &quot;candidate_category&quot;: &quot;shoes&quot;,
+    &quot;candidate_price&quot;: 80.0,
+    &quot;device&quot;: &quot;mobile&quot;,
+    &quot;surface&quot;: &quot;home_feed&quot;,
+    &quot;hour_utc&quot;: 9,
+    &quot;recent_history&quot;: [
+      {&quot;item_id&quot;: &quot;A12&quot;, &quot;category&quot;: &quot;shoes&quot;},
+      {&quot;item_id&quot;: &quot;A18&quot;, &quot;category&quot;: &quot;shoes&quot;},
+      {&quot;item_id&quot;: &quot;A33&quot;, &quot;category&quot;: &quot;books&quot;}
+    ]
+  },
+  &quot;labels&quot;: {
+    &quot;clicked&quot;: 1
+  },
+  &quot;sample_weight&quot;: 1.0
+}
+</code></pre>
+<p><code>metadata</code> helps reconstruct and audit an example. <code>features</code> is the allowed prediction input. <code>labels</code> provides the target only during training and evaluation. A <code>sample_weight</code> tells the loss how much that example counts; 1.0 means ordinary equal weighting.</p>
+<p>Here, price means the product's price, not the advertiser's bid. The choice of fields is illustrative; it does not claim that every production ranker takes these inputs.</p>
+<h2 id="the-corresponding-numerical-input">The corresponding numerical input</h2>
+<p>Use these invented vocabularies. In every vocabulary here, 0 is reserved for padding and 1 for unknown; real values use indices 2 or greater. The digit-like ID mappings below are explicitly chosen entries, not a general rule for converting IDs. No real item gets index 0 or 1. Non-history features do not need padding in practice; this example reserves the same slots for clarity.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Mapping</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user_id</td>
+<td>U7 → 7</td>
+</tr>
+<tr>
+<td>candidate_item_id and history_item_ids</td>
+<td>A12 → 12, A18 → 18, A33 → 33, A42 → 42</td>
+</tr>
+<tr>
+<td>device</td>
+<td>mobile → 2</td>
+</tr>
+<tr>
+<td>surface</td>
+<td>home_feed → 2</td>
+</tr>
+<tr>
+<td>category</td>
+<td>shoes → 2, books → 3</td>
+</tr>
+</tbody>
+</table>
+<p>Divide price by 100 and hour_utc by 23. The hour comes from the scoring time, which is still 09:59:58, so its value is 9. The simple hour scaling is for teaching; local hour, categorical hours, or cyclic representations can better capture daily patterns. <strong>Dense</strong> below means the measured numerical features. <strong>Sparse</strong> conventionally describes categorical features whose full <strong>one-hot</strong> representation would be mostly zeros. A one-hot vector has one position per vocabulary entry: 1 for the observed value and 0 everywhere else. With a million items, that is 999,999 zeros, so the model usually receives the compact index instead.</p>
+<pre><code class="language-python"># Batch size B = 1; maximum history length L = 5.
+x = {
+    &quot;user_id&quot;: [7],
+    &quot;candidate_item_id&quot;: [42],
+    &quot;candidate_category&quot;: [2],
+    &quot;device&quot;: [2],
+    &quot;surface&quot;: [2],
+    &quot;dense&quot;: [[0.80, 9 / 23]],
+    &quot;history_item_ids&quot;: [[12, 18, 33, 0, 0]],
+    &quot;history_category_ids&quot;: [[2, 2, 3, 0, 0]],
+    &quot;history_mask&quot;: [[True, True, True, False, False]]
+}
+
+y = [[1.0]]
+weight = [[1.0]]
+</code></pre>
+<p>This Python dictionary describes tensor contents. A tensor is a numerical array with a shape and data type. A loader turns these lists into the arrays a framework expects.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Shape for batch size B</th>
+<th>Typical type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One categorical feature</td>
+<td>B or B × 1</td>
+<td>Integer indices</td>
+</tr>
+<tr>
+<td>Two numerical features</td>
+<td>B × 2</td>
+<td>Float32</td>
+</tr>
+<tr>
+<td>Item history</td>
+<td>B × 5</td>
+<td>Integer indices</td>
+</tr>
+<tr>
+<td>History mask</td>
+<td>B × 5</td>
+<td>Boolean</td>
+</tr>
+<tr>
+<td>Click label</td>
+<td>B × 1</td>
+<td>Float32 for binary loss</td>
+</tr>
+</tbody>
+</table>
+<p>For B=32, you stack 32 examples along the first dimension. That group is a <strong>batch</strong>. An <strong>epoch</strong> is one pass through the training dataset.</p>
+<h2 id="what-the-model-does-with-it">What the model does with it</h2>
+<p>A possible model looks up embeddings for the categorical values, summarizes the valid history entries, <strong>concatenates</strong> (joins end to end) the resulting vectors with the numerical features, and passes the result through a neural network. Its final output is a click probability.</p>
+<p>For a binary label y and predicted probability p, <strong>binary cross-entropy</strong> is −[y × ln(p) + (1−y) × ln(1−p)]. Here ln is the natural logarithm; the formula makes a confident wrong prediction expensive. For p=0.20 and y=1, loss is −ln(0.20) ≈ 1.609. For y=0 it is −ln(0.80) ≈ 0.223. <strong>Log loss</strong> is this loss averaged over examples. Training adjusts parameters, including embeddings, to reduce it. The formula is conceptual; libraries use numerically stable implementations.</p>
+<pre><code class="language-python"># Framework-neutral training outline, not runnable API code.
+prediction = model(x)
+loss_per_example = binary_cross_entropy(prediction, y)
+loss = mean(weight * loss_per_example)
+update_model_parameters(loss)
+</code></pre>
+<p>The pseudocode uses the mean of weighted losses. Some libraries divide by the sum of weights instead; this changes the scaling within a batch and can change the relative contribution of batches with different weight totals. Match your framework's reduction convention.</p>
+<p>At prediction time, you have <code>x</code> but do not yet know <code>y</code>. To rank ten candidates, construct ten candidate-specific inputs. Some user and context computation can be shared across them.</p></section>
+<section class="chapter" id="chapter-5" data-title="Published Criteo and DIN examples"><p class="eyebrow">CHAPTER 05</p><h2 id="published-criteo-and-din-examples">Published Criteo and DIN examples</h2>
+<h2 id="criteo-provides-real-anonymized-rows">Criteo provides real anonymized rows</h2>
+<p>The <a href="https://deepctr-torch.readthedocs.io/en/latest/Examples.html#classification-criteo">DeepCTR-Torch Criteo tutorial</a> uses 13 numerical fields and 26 categorical fields. In its <a href="https://github.com/shenweichen/DeepCTR-Torch/blob/master/examples/criteo_sample.txt">published sample file</a>, the first example has label 0. These are selected fields from that exact row, not an invented record:</p>
+<pre><code class="language-python">{
+    &quot;label&quot;: 0,
+    &quot;I1&quot;: None,
+    &quot;I2&quot;: 3,
+    &quot;I3&quot;: 260.0,
+    &quot;I5&quot;: 17668.0,
+    &quot;I8&quot;: 33.0,
+    &quot;C1&quot;: &quot;05db9164&quot;,
+    &quot;C2&quot;: &quot;08d6d899&quot;,
+    &quot;C3&quot;: &quot;9143c832&quot;
+}
+</code></pre>
+<p>The original row has 39 feature columns, some empty; this excerpt omits the rest. The published feature names are anonymized. You cannot infer that C1 means user or that I3 means age.</p>
+<p>The <a href="https://github.com/shenweichen/DeepCTR-Torch/blob/master/examples/run_classification_criteo.py">example training script</a> replaces missing values, label-encodes categorical fields independently, and scales numerical columns. For the full 200-row sample, the first row's C1, C2, and C3 encode to 0, 4, and 96, respectively. These are vocabulary indices, not intrinsic meanings of the original strings.</p>
+<p>The demo reserves no unknown index: zero can be a real category here, unlike our worked example. An unseen serving category needs an explicit handling rule. Filling missing numbers with zero also loses the distinction between missing and genuine zero unless an indicator is added. Public benchmark click rates can differ from live traffic; do not assume their probabilities transfer unchanged.</p>
+<p>This example is good for understanding the mechanical path from table columns to embeddings. It is less useful for understanding the business meaning of each feature. <a href="https://developer.nvidia.com/blog/optimizing-dlrm-on-nvidia-gpus/">NVIDIA's Criteo overview</a> explains the anonymized numerical and hashed categorical format.</p>
+<h2 id="din-makes-candidate-and-history-inputs-explicit">DIN makes candidate and history inputs explicit</h2>
+<p>Alibaba's <a href="https://arxiv.org/html/1706.06978v4#S4.SS1">DIN paper, Section 4.1</a>, uses the feature example below, reformatted from a set of visited categories into a list:</p>
+<pre><code class="language-python">{
+    &quot;weekday&quot;: &quot;Friday&quot;,
+    &quot;gender&quot;: &quot;Female&quot;,
+    &quot;visited_cate_ids&quot;: [&quot;Bag&quot;, &quot;Book&quot;],
+    &quot;ad_cate_id&quot;: &quot;Book&quot;
+}
+</code></pre>
+<p>The paper's idea is to build a user-interest representation that depends on which ad is being scored. A book candidate can emphasize book-related history.</p>
+<p>For numerical input, the first toy example in DeepCTR-Torch's <a href="https://github.com/shenweichen/DeepCTR-Torch/blob/master/examples/run_din.py#L11-L30">DIN demo</a> is:</p>
+<pre><code class="language-python">x = {
+    &quot;user&quot;: [0],
+    &quot;gender&quot;: [0],
+    &quot;item&quot;: [1],
+    &quot;item_gender&quot;: [1],
+    &quot;score&quot;: [0.1],
+    &quot;hist_item&quot;: [[1, 2, 3, 0]],
+    &quot;hist_item_gender&quot;: [[1, 1, 2, 0]],
+    &quot;seq_length&quot;: [3]
+}
+y = [1]
+</code></pre>
+<p>This is synthetic demonstration data from a third-party library, not an Alibaba production record. The history has three valid entries and one padding position. In this separate demo, zero is a real user or gender value but pads the item history; reserved indices are feature-specific and differ from our uniform teaching convention. The demo does not specify a business meaning for score. Candidate item 1 also occurs in its history: in real data that is valid only for a genuinely earlier interaction. The demo uses label shape B, while the worked example uses B × 1; match your library's required label shape and type.</p>
+<p>Criteo and DIN illustrate different input structures. They are not two serializations of the same dataset.</p></section>
+<section class="chapter" id="chapter-6" data-title="How data changes across recommendation tasks"><p class="eyebrow">CHAPTER 06</p><h2 id="how-data-changes-across-recommendation-tasks">How data changes across recommendation tasks</h2>
+<p>“Recommendation training data” does not identify a single universal schema. First decide the question the model answers.</p>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>One example represents</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CTR ranking</td>
+<td>One logged showing of a candidate</td>
+<td>Click within a defined window</td>
+</tr>
+<tr>
+<td>Rating prediction</td>
+<td>A user rating an item</td>
+<td>A numerical rating</td>
+</tr>
+<tr>
+<td>Retrieval</td>
+<td>A user or query context paired with a relevant item</td>
+<td>Relevant item versus contrasting items</td>
+</tr>
+<tr>
+<td>Conversion prediction</td>
+<td>An eligible impression or click</td>
+<td>Attributed conversion within a window</td>
+</tr>
+<tr>
+<td>Next-item prediction</td>
+<td>A history ending at a cutoff</td>
+<td>The next observed item</td>
+</tr>
+<tr>
+<td>Pairwise ranking</td>
+<td>Two items under a shared context</td>
+<td>Which item is preferred</td>
+</tr>
+<tr>
+<td>Listwise ranking</td>
+<td>A group of candidates under a shared request</td>
+<td>Per-item relevance or outcome labels</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ranking-can-train-on-individual-rows">Ranking can train on individual rows</h2>
+<p>A model trained to predict clicks independently can still rank items by its predictions. It does not need to receive a sorted list during every training step. This is commonly called <strong>pointwise</strong> training.</p>
+<p>For explicit ratings, a row might be <code>user=U7, item=A42, rating=4</code>. The rating is a numerical target, not a click label. TensorFlow's <a href="https://www.tensorflow.org/recommenders/examples/basic_ranking">ranking tutorial</a> demonstrates retaining the user, movie title, and rating, then predicting the rating.</p>
+<h2 id="retrieval-needs-contrasting-candidates">Retrieval needs contrasting candidates</h2>
+<p>Retrieval finds a manageable candidate set from a large catalog. A common two-tower design separately turns user/context features and item features into vectors, then scores their compatibility.</p>
+<p>An invented training example could be:</p>
+<pre><code class="language-python">{
+    &quot;user_id&quot;: &quot;U7&quot;,
+    &quot;history&quot;: [&quot;A12&quot;, &quot;A18&quot;],
+    &quot;positive_item&quot;: &quot;A42&quot;,
+    &quot;sampled_other_items&quot;: [&quot;A81&quot;, &quot;A90&quot;]
+}
+</code></pre>
+<p>Here a positive item is an observed relevant interaction, and a negative is a sampled contrast, not a proven dislike. Some training methods use other examples' positive items as <strong>in-batch negatives</strong>. You need not store every contrasting pair explicitly in the file. TensorFlow's <a href="https://www.tensorflow.org/recommenders/examples/basic_retrieval">retrieval tutorial</a> demonstrates a two-tower setup with user-item interactions.</p>
+<p>Popular items appear more often as other examples' positives, so the distribution of in-batch contrasts can be skewed. Some training methods adjust for their sampling probabilities.</p>
+<p>A retrieval similarity score is not automatically a calibrated probability of a click. Also, an unobserved item may be relevant even when training uses it as a contrast.</p>
+<h2 id="next-item-prediction-uses-a-shifted-history">Next-item prediction uses a shifted history</h2>
+<p>In an invented chronological history <code>[A12, A18, A33, A42]</code>, one training example can be:</p>
+<pre><code class="language-python">x = {&quot;history&quot;: [&quot;A12&quot;, &quot;A18&quot;, &quot;A33&quot;]}
+y = &quot;A42&quot;
+</code></pre>
+<p>The target must not appear in the input as a future event; earlier interactions with that same item are legitimate. In <strong>causal sequence training</strong>, each prediction sees only earlier positions; several positions can therefore supply targets. The target is an item identifier rather than a binary click.</p>
+<h2 id="pairwise-and-listwise-data-preserve-comparisons">Pairwise and listwise data preserve comparisons</h2>
+<p>Pairwise data might contain <code>context, preferred_item, other_item</code>. Listwise data might contain <code>request_id, candidate_items, labels, valid_item_mask</code>. Keep the request grouping so the loss knows which items are being compared. Padding a candidate list requires masking its padded entries.</p>
+<h2 id="ads-share-input-types-but-add-business-objectives">Ads share input types but add business objectives</h2>
+<p>Ads can use the same user, item, context, and history inputs as product recommendations. They additionally involve payment rules, targeting, budgets, and advertiser objectives.</p>
+<p>A <strong>conversion</strong> is a downstream action such as a purchase or signup. <strong>CPC</strong> means <strong>cost per click</strong>, a payment arrangement where a valid click is the billable event. A <strong>bid</strong> is the advertiser's offer per billable event. In a simplified CPC setup, a downstream scoring rule may multiply predicted click probability by a bid per click. The bid need not be a CTR model feature. Similarly, product price and advertiser bid are distinct quantities.</p>
+<p>For conversion models, state the denominator. <strong>CVR</strong> means conversion rate; <strong>pCVR</strong> is a predicted conversion probability. <strong>Conditional probability</strong> means the chance of one event given specified information. A post-click model estimates P(conversion given click and impression features). An impression-level model estimates P(conversion given impression features).</p>
+<p>For a common impression context x, the probability identity is:</p>
+<pre><code class="language-text">P(click AND conversion | x)
+  = P(click | x) × P(conversion | click, x)
+</code></pre>
+<p>The vertical bar means “given.” Thus pCTR × post-click pCVR estimates the joint click-and-conversion probability. It represents the probability of an attributed conversion per impression only if the conversion definition requires that matching click. It excludes view-through conversions, which are credited without a click. Click windows, invalid-click filtering, conversion windows, and attribution must agree. Any inputs needed at scoring must be available then; later post-click information cannot be silently used. A post-click CVR model trains on clicked rows but is applied to candidates whose click is not yet known. Extrapolating from this selected population is a form of sample selection bias. The joint prediction is sometimes written pCTCVR, meaning a predicted click-and-conversion probability.</p>
+<p>Multiplying pCTR by an already impression-level conversion probability counts the click factor twice. When a probability is multiplied by bids or values, its calibration matters to the resulting economic score.</p>
+<p>A multi-task record can carry click, conversion, and watch-time labels. Some targets are undefined for some rows; use explicit validity masks rather than silently treating every missing target as zero.</p></section>
+<section class="chapter" id="chapter-7" data-title="Labels sampling and evaluation"><p class="eyebrow">CHAPTER 07</p><h2 id="labels-sampling-and-evaluation">Labels sampling and evaluation</h2>
+<h2 id="a-negative-label-needs-an-observation-rule">A negative label needs an observation rule</h2>
+<p>A displayed item with no recorded click is evidence about that showing. It is not proof that the user dislikes the item. A candidate that was never displayed has no observed response to that opportunity.</p>
+<p>For click training, keep impression logs as well as click logs. Click-only data cannot directly tell you the rate of clicks per impression.</p>
+<p>Conversions may take hours or days. For an invented click-attributed conversion target measured over seven days from the impression, a record collected one hour after that impression cannot yet be confidently labeled “no conversion.” Wait for the window, mask immature labels, or use a method explicitly designed for delayed outcomes. Record the attribution definition, the window anchor, and when labels become final after allowing for delayed logs. A positive can be observed earlier, but retaining early positives alongside immature negatives can itself bias a training sample.</p>
+<h2 id="sampling-changes-what-the-model-sees">Sampling changes what the model sees</h2>
+<p>Suppose an invented dataset has 1,000 clicks and 99,000 non-clicks: the click rate is 1%. If you keep all clicks and only 1,000 non-clicks, the sampled rate becomes 50%.</p>
+<p>A model trained without an appropriate adjustment may learn probabilities for the sampled population. A prediction of 50% would not mean a 50% click chance in live traffic.</p>
+<p>If a row is retained with probability q, inverse-probability weighting uses weight <code>1/q</code>. For this illustration, the retained negatives have weight 99 and positives weight 1. Other correction methods exist; whichever you choose must match the sampling procedure. Google's <a href="https://developers.google.com/machine-learning/crash-course/overfitting/imbalanced-datasets">imbalanced dataset lesson</a> discusses downsampling and compensating weights.</p>
+<p>For honest probability evaluation, use an unsampled representative test set or appropriate evaluation weights. If negative sampling is independent of features within each class, AUC (a ranking metric measuring how often a random positive scores above a random negative, expanded in the metrics table below) is unchanged in expectation for fixed scores, but raw log loss and calibration on the sampled data are not population estimates.</p>
+<p>Candidate sampling for retrieval serves a different purpose from discarding non-clicked impressions in CTR training. Keep those two choices distinct.</p>
+<h2 id="evaluate-predictions-on-later-data">Evaluate predictions on later data</h2>
+<p>A useful initial split is older events for training, a later interval for validation, and a still later interval for a final test. These intervals are not themselves model features. They determine which examples are used for learning, choosing settings, and assessing the chosen model.</p>
+<p>For conversion labels, make sure the training outcomes would have matured by the simulated model-build time, or explicitly account for their availability. A chronological split alone does not solve delayed-label leakage.</p>
+<p>Fit vocabularies, scaling statistics, and other learned preprocessing on the training portion, then apply them consistently to validation, test, and serving inputs. Reserve unknown categories. The Criteo demo fits transformations before a random split; that is convenient demo code, not the evaluation procedure to copy for a temporal production problem.</p>
+<p>The same user can legitimately appear in training and later test data if predicting returning users is your use case. To measure performance on new users or new items, construct that evaluation separately.</p>
+<h2 id="match-metrics-to-the-target">Match metrics to the target</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>What it helps you inspect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Log loss</td>
+<td>Whether predicted probabilities agree with outcomes</td>
+</tr>
+<tr>
+<td>AUC</td>
+<td>Area under the receiver operating characteristic curve; measures how often a positive scores above a negative, counting ties as half</td>
+</tr>
+<tr>
+<td>Calibration</td>
+<td>Whether groups predicted near 3% actually click near 3%</td>
+</tr>
+<tr>
+<td>Recall at K</td>
+<td>Of all relevant items, the fraction appearing in the first K results; K is the list length</td>
+</tr>
+<tr>
+<td>NDCG at K</td>
+<td>Normalized discounted cumulative gain; rewards relevance near the top, relative to an ideal ordering</td>
+</tr>
+</tbody>
+</table>
+<p>For rare clicks, accuracy can be misleading: predicting “no click” for everything can appear very accurate.</p>
+<p>Offline evaluation still reflects the old system's exposure choices. Items it rarely showed have little outcome data. Position, selection, and feedback loops can therefore bias results. An <strong>online experiment</strong>, often an A/B test, assigns live traffic to alternative systems to compare outcomes. Such experiments help measure a changed system's effect on users and the marketplace. Google's <a href="https://research.google/pubs/ad-click-prediction-a-view-from-the-trenches/">View from the Trenches</a> is a useful follow-up on calibration and practical CTR evaluation.</p></section>
+<section class="chapter" id="chapter-8" data-title="A practical starting schema"><p class="eyebrow">CHAPTER 08</p><h2 id="a-practical-starting-schema">A practical starting schema</h2>
+<p>For a first CTR dataset, use one row per impression. Start with user, item, context, and a click label; add behavior lists when the simple path is understood.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Role</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>impression_id</td>
+<td>Metadata</td>
+<td>Unique showing identifier for joins and deduplication</td>
+</tr>
+<tr>
+<td>request_id</td>
+<td>Metadata</td>
+<td>Groups items from one recommendation request</td>
+</tr>
+<tr>
+<td>prediction_time</td>
+<td>Metadata</td>
+<td>Scoring decision time; defines the feature cutoff</td>
+</tr>
+<tr>
+<td>shown_at</td>
+<td>Metadata</td>
+<td>Logged exposure time; anchors this guide's label windows</td>
+</tr>
+<tr>
+<td>user_id</td>
+<td>Feature</td>
+<td>User identity, with an unknown value supported</td>
+</tr>
+<tr>
+<td>candidate_item_id</td>
+<td>Feature</td>
+<td>Candidate identity, with an unknown value supported</td>
+</tr>
+<tr>
+<td>candidate_category</td>
+<td>Feature</td>
+<td>Candidate category</td>
+</tr>
+<tr>
+<td>device</td>
+<td>Feature</td>
+<td>Device class known when scoring</td>
+</tr>
+<tr>
+<td>surface</td>
+<td>Feature</td>
+<td>Page or placement being scored</td>
+</tr>
+<tr>
+<td>hour_utc</td>
+<td>Feature</td>
+<td>UTC hour derived from prediction_time</td>
+</tr>
+<tr>
+<td>candidate_price</td>
+<td>Optional feature</td>
+<td>Product price as known at prediction time</td>
+</tr>
+<tr>
+<td>recent_history</td>
+<td>Optional feature</td>
+<td>Aligned item and category records before the cutoff</td>
+</tr>
+<tr>
+<td>history_length</td>
+<td>Input helper</td>
+<td>Number of valid history entries</td>
+</tr>
+<tr>
+<td>clicked</td>
+<td>Label</td>
+<td>Attributed click within the defined window</td>
+</tr>
+<tr>
+<td>label_finalized_at</td>
+<td>Metadata</td>
+<td>Time after which the click target is complete</td>
+</tr>
+<tr>
+<td>sample_probability</td>
+<td>Metadata</td>
+<td>Probability that this example was retained</td>
+</tr>
+<tr>
+<td>sample_weight</td>
+<td>Loss input</td>
+<td>Weight appropriate to the training procedure</td>
+</tr>
+</tbody>
+</table>
+<p>Apply your organization's consent, access, and retention rules to user-level logs.</p>
+<p>You can store this in Parquet, including list-valued history columns. CSV is convenient for the flat version; JSON is easier to inspect manually. A training loader reads records and produces the same logical numerical arrays regardless of storage format.</p>
+<p>The loader turns recent_history into history_item_ids and history_category_ids, generates a mask, derives hour_utc from prediction_time, and puts transformed candidate_price and hour_utc into dense. It maps each categorical field (user, item, category, device, and surface) to indices. The JSON and the tensor dictionary therefore use different names only for explicit transformations.</p>
+<p>Keep a small <strong>data dictionary</strong> beside the dataset. For each field, specify its meaning, type, allowed values, units, missing-value behavior, and whether it is an input or label. Also preserve the vocabulary, transformations, history order, maximum history length, target window, and schema version with the model.</p>
+<p>Before training, inspect a few complete examples manually:</p>
+<ol>
+<li>
+<p>Can you trace each label to a real impression and its attributed response?</p>
+</li>
+<li>
+<p>Do all features obey the decision-time cutoff?</p>
+</li>
+<li>
+<p>Are duplicated events removed without collapsing legitimate repeated impressions?</p>
+</li>
+<li>
+<p>Do padding, unknown, and missing values have distinct documented meanings?</p>
+</li>
+<li>
+<p>Are parallel history arrays aligned and lengths correct?</p>
+</li>
+<li>
+<p>Are training and live prediction encodings identical?</p>
+</li>
+<li>
+<p>Does the train/test split match the future behavior you want to evaluate?</p>
+</li>
+</ol>
+<p>Do not automatically feed every logged field into the model. For example, the actual final position after ranking may be unavailable when scoring candidates. Keep it for analysis; if a model uses position, define how it will know the proposed position during serving.</p>
+<p>A successful first milestone is being able to select one raw impression and explain every number in its model input, every historical event included, and exactly why its label is 0 or 1.</p></section>
+<section class="chapter" id="chapter-9" data-title="Sources and next steps"><p class="eyebrow">CHAPTER 09</p><h2 id="sources-and-next-steps">Sources and next steps</h2>
+<p>The published samples and the invented worked example serve different purposes. Use the original files when reproducing their exact preprocessing; use the worked example to understand the meaning of the fields.</p>
+<table>
+<thead>
+<tr>
+<th>Read</th>
+<th>Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://deepctr-torch.readthedocs.io/en/latest/Examples.html#classification-criteo">DeepCTR-Torch Criteo tutorial</a></td>
+<td>Tabular CTR features and preprocessing</td>
+</tr>
+<tr>
+<td><a href="https://github.com/shenweichen/DeepCTR-Torch/blob/master/examples/criteo_sample.txt">Criteo sample file</a></td>
+<td>Actual anonymized feature values</td>
+</tr>
+<tr>
+<td><a href="https://github.com/shenweichen/DeepCTR-Torch/blob/master/examples/run_classification_criteo.py">Criteo training script</a></td>
+<td>How columns become training inputs</td>
+</tr>
+<tr>
+<td><a href="https://arxiv.org/html/1706.06978v4#S4">DIN paper Sections 4.1 to 4.3</a></td>
+<td>Feature representation and candidate-dependent history weighting</td>
+</tr>
+<tr>
+<td><a href="https://github.com/shenweichen/DeepCTR-Torch/blob/master/examples/run_din.py">DIN toy input code</a></td>
+<td>Concrete categorical and history arrays</td>
+</tr>
+<tr>
+<td><a href="https://www.tensorflow.org/recommenders/examples/featurization">TensorFlow feature preprocessing</a></td>
+<td>IDs, numerical values, and text</td>
+</tr>
+<tr>
+<td><a href="https://www.tensorflow.org/recommenders/examples/basic_retrieval">TensorFlow retrieval tutorial</a></td>
+<td>User and candidate towers</td>
+</tr>
+<tr>
+<td><a href="https://www.tensorflow.org/recommenders/examples/basic_ranking">TensorFlow ranking tutorial</a></td>
+<td>Explicit rating targets</td>
+</tr>
+<tr>
+<td><a href="https://developers.google.com/machine-learning/crash-course/overfitting/imbalanced-datasets">Google on imbalanced datasets</a></td>
+<td>Sampling and weights</td>
+</tr>
+<tr>
+<td><a href="https://research.google/pubs/ad-click-prediction-a-view-from-the-trenches/">Google View from the Trenches</a></td>
+<td>Practical probability prediction and calibration</td>
+</tr>
+</tbody>
+</table>
+<p>For your first exercise, inspect a few rows of the Criteo sample and follow the numerical and categorical transformations in its script. Then inspect the DIN demo and identify the candidate, valid history entries, padding, and label. After that, build the invented impression example above in a small dataset of your own.</p>
+<p>You understand the format when you can answer: What opportunity does this row describe? What was known at prediction time? What is being predicted? How did each field become a tensor? Which outcome supplied the label?</p></section>
+<section class="chapter" id="glossary" data-title="Glossary and self check"><p class="eyebrow">REFERENCE</p><h2>Glossary and self check</h2><p>Definitions for every technical term you need to follow the guide. Filter by a term or phrase.</p><label for="glossary-search">Find a definition</label><input type="search" id="glossary-search" placeholder="Try embedding, attribution, or calibration"><p id="term-count" role="status"></p><dl id="glossary-list"><div class="term" data-term="a/b test"><dt>A/B test</dt><dd>An online experiment that assigns traffic to alternative systems and compares outcomes. Marketplace interactions can require more careful experimental units than individual requests.</dd></div><div class="term" data-term="attribution"><dt>Attribution</dt><dd>A rule assigning a response, such as a click or conversion, to a particular earlier impression or click, including the eligible time window.</dd></div><div class="term" data-term="auc"><dt>AUC</dt><dd>Area under the receiver operating characteristic curve. For fixed scores, it equals the chance a random positive outranks a random negative, counting ties as half.</dd></div><div class="term" data-term="available time"><dt>Available time</dt><dd>When an event or feature value became accessible to the scoring system. It can be later than the time the event occurred.</dd></div><div class="term" data-term="batch"><dt>Batch</dt><dd>A group of training examples processed together. B denotes the number of examples in a batch.</dd></div><div class="term" data-term="bid"><dt>Bid</dt><dd>The advertiser&#x27;s offer per billable event, such as a click. It is distinct from a product&#x27;s price.</dd></div><div class="term" data-term="binary cross-entropy"><dt>Binary cross-entropy</dt><dd>An error score for a binary label y and predicted probability p: −[y ln(p) + (1−y) ln(1−p)]. Uses the natural logarithm.</dd></div><div class="term" data-term="boolean"><dt>Boolean</dt><dd>A logical value, either true or false. Often used for masks.</dd></div><div class="term" data-term="calibration"><dt>Calibration</dt><dd>Agreement between predicted probabilities and observed frequencies on the population being evaluated.</dd></div><div class="term" data-term="candidate"><dt>Candidate</dt><dd>An item being considered for recommendation or ad delivery.</dd></div><div class="term" data-term="categorical feature"><dt>Categorical feature</dt><dd>A value that identifies a category or entity rather than measuring a quantity. Item IDs and device classes are examples.</dd></div><div class="term" data-term="causal sequence training"><dt>Causal sequence training</dt><dd>Training in which a prediction at a sequence position sees only its allowed earlier context, not future targets.</dd></div><div class="term" data-term="click"><dt>Click</dt><dd>A recorded interaction with a displayed item. Training labels need explicit rules for valid clicks, attribution, and duplicate events.</dd></div><div class="term" data-term="concatenate"><dt>Concatenate</dt><dd>Join vectors end to end to make one longer vector.</dd></div><div class="term" data-term="conditional probability"><dt>Conditional probability</dt><dd>The chance of an event given specified information. P(A | B) means the probability of A given B.</dd></div><div class="term" data-term="context"><dt>Context</dt><dd>Information about the current opportunity, such as device, surface, time, and query.</dd></div><div class="term" data-term="conversion"><dt>Conversion</dt><dd>A downstream outcome such as a purchase or signup. The exact action and attribution rule must be specified.</dd></div><div class="term" data-term="cpc"><dt>CPC</dt><dd>Cost per click. An advertising payment arrangement in which a valid click is the billable event.</dd></div><div class="term" data-term="csv"><dt>CSV</dt><dd>Comma-separated values, a text format for tables. Readers must preserve ID strings, missing values, and types deliberately.</dd></div><div class="term" data-term="ctr"><dt>CTR</dt><dd>Click-through rate. In this guide&#x27;s binary impression setting: impressions with at least one valid attributed click divided by eligible impressions.</dd></div><div class="term" data-term="cvr"><dt>CVR</dt><dd>Conversion rate. Its denominator must be stated: clicked impressions, all impressions, or another defined eligible population.</dd></div><div class="term" data-term="data dictionary"><dt>Data dictionary</dt><dd>A specification of each field&#x27;s meaning, type, units, allowed values, missing-value handling, and role.</dd></div><div class="term" data-term="data leakage"><dt>Data leakage</dt><dd>Using information during training or evaluation that would not be available for the real prediction, such as the outcome being predicted.</dd></div><div class="term" data-term="deduplication"><dt>Deduplication</dt><dd>Removing duplicate copies of the same event without merging distinct legitimate events.</dd></div><div class="term" data-term="denominator"><dt>Denominator</dt><dd>The quantity used as the divisor in a rate. Clicks per impression and conversions per click have different denominators.</dd></div><div class="term" data-term="dense feature"><dt>Dense feature</dt><dd>Here, a numerical measurement supplied as a floating-point value. More generally, dense describes an array whose representation is not mostly omitted or zero.</dd></div><div class="term" data-term="din"><dt>DIN</dt><dd>Deep Interest Network, an Alibaba model that weights historical behaviors according to their relevance to a candidate. Basic weighted pooling alone does not capture order.</dd></div><div class="term" data-term="dot product"><dt>Dot product</dt><dd>Multiply matching coordinates of two equal-length vectors and add the products. For [1,2] and [3,4], the result is 1×3 + 2×4 = 11.</dd></div><div class="term" data-term="embedding"><dt>Embedding</dt><dd>A learned vector of numbers representing an entity or category.</dd></div><div class="term" data-term="embedding table"><dt>Embedding table</dt><dd>A model parameter array whose rows are vectors selected by categorical indices. A shared vocabulary does not by itself imply a shared embedding table.</dd></div><div class="term" data-term="encoder"><dt>Encoder</dt><dd>A transformation or model that turns an input, such as text, an image, or an ID, into a numerical representation.</dd></div><div class="term" data-term="encoding"><dt>Encoding</dt><dd>Converting raw feature values into a defined numerical representation.</dd></div><div class="term" data-term="epoch"><dt>Epoch</dt><dd>One pass through the training examples. Training can make multiple passes.</dd></div><div class="term" data-term="evaluation"><dt>Evaluation</dt><dd>Measuring a trained model on data not used for its parameter updates.</dd></div><div class="term" data-term="feature"><dt>Feature</dt><dd>Information the model is allowed to use to make a prediction.</dd></div><div class="term" data-term="feature hashing"><dt>Feature hashing</dt><dd>Mapping values into a fixed number of integer buckets. Different values can collide in the same bucket.</dd></div><div class="term" data-term="feedback loop"><dt>Feedback loop</dt><dd>The model influences which items receive exposure; those exposures generate outcomes that influence later training.</dd></div><div class="term" data-term="fitting"><dt>Fitting</dt><dd>Learning parameters or preprocessing statistics from training data.</dd></div><div class="term" data-term="float32"><dt>Float32</dt><dd>A commonly used 32-bit floating-point numerical type.</dd></div><div class="term" data-term="history"><dt>History</dt><dd>Interactions before the prediction cutoff. Its event order, availability rule, truncation, padding, and masks must be documented.</dd></div><div class="term" data-term="impression"><dt>Impression</dt><dd>A logged showing of an item under a stated exposure definition. Logging an impression does not prove the person paid attention.</dd></div><div class="term" data-term="in-batch negative"><dt>In-batch negative</dt><dd>An item from another example in a batch used as a contrasting candidate for the current user or context.</dd></div><div class="term" data-term="index"><dt>Index</dt><dd>An integer used to select a vocabulary entry or embedding row. Its size does not measure the importance or magnitude of an ID.</dd></div><div class="term" data-term="inverse-probability weighting"><dt>Inverse-probability weighting</dt><dd>Weighting a retained example by the reciprocal of its inclusion probability, under a specified sampling design.</dd></div><div class="term" data-term="item"><dt>Item</dt><dd>The entity being recommended: an ad, product, video, article, song, or other candidate.</dd></div><div class="term" data-term="join"><dt>Join</dt><dd>Combining records from tables using a specified relationship, such as a shared item or impression identifier.</dd></div><div class="term" data-term="json"><dt>JSON</dt><dd>A text format with named fields, objects, lists, numbers, booleans, and null values.</dd></div><div class="term" data-term="label"><dt>Label</dt><dd>The observed training target. It is separated from prediction inputs.</dd></div><div class="term" data-term="label encoding"><dt>Label encoding</dt><dd>Mapping distinct categorical values to integer indices. The fitted mapping and unknown-value behavior must be preserved.</dd></div><div class="term" data-term="label finalization"><dt>Label finalization</dt><dd>The point at which the target window and required log-arrival allowance have completed under the chosen policy.</dd></div><div class="term" data-term="label mask"><dt>Label mask</dt><dd>An indicator that a particular target is valid and should contribute to the corresponding training loss.</dd></div><div class="term" data-term="listwise ranking"><dt>Listwise ranking</dt><dd>Training on a group of candidates belonging to one request, with labels or preferences interpreted within that group.</dd></div><div class="term" data-term="log loss"><dt>Log loss</dt><dd>Binary cross-entropy averaged over examples, possibly with defined weights.</dd></div><div class="term" data-term="loss"><dt>Loss</dt><dd>A numerical measure of prediction error that the training procedure tries to reduce.</dd></div><div class="term" data-term="mask"><dt>Mask</dt><dd>An array indicating which entries or labels are valid; padded entries must not act as real events.</dd></div><div class="term" data-term="mean"><dt>Mean</dt><dd>The sum of values divided by their count; an average.</dd></div><div class="term" data-term="metadata"><dt>Metadata</dt><dd>Bookkeeping such as event IDs, timestamps, and schema versions. Metadata is not automatically a model feature.</dd></div><div class="term" data-term="missing value"><dt>Missing value</dt><dd>An unavailable value, distinct from a measured zero. A default plus a missing indicator can preserve the distinction.</dd></div><div class="term" data-term="multi-task model"><dt>Multi-task model</dt><dd>A model trained to predict multiple targets, such as click and conversion, using separate target definitions and validity masks.</dd></div><div class="term" data-term="natural logarithm"><dt>Natural logarithm</dt><dd>The inverse of raising the number e (approximately 2.718) to a power. Written ln; used in the binary cross-entropy formula.</dd></div><div class="term" data-term="ndcg at k"><dt>NDCG at K</dt><dd>Normalized discounted cumulative gain for the first K items: relevance with greater weight near the top, divided by an ideal ordering&#x27;s score. Exact gain and discount formulas must be specified.</dd></div><div class="term" data-term="negative example"><dt>Negative example</dt><dd>A label-0 row under a specified outcome rule. In retrieval, a sampled negative is a contrast, not necessarily an observed rejection.</dd></div><div class="term" data-term="neural network"><dt>Neural network</dt><dd>A model made of layers of adjustable weighted computations and nonlinear functions.</dd></div><div class="term" data-term="nonlinear function"><dt>Nonlinear function</dt><dd>A transformation whose output is not simply a constant times its input plus a constant; neural networks use such functions to learn more complex relationships.</dd></div><div class="term" data-term="normalization"><dt>Normalization</dt><dd>Transforming numerical values to a useful scale. The transformation and any fitted statistics must be consistent across training and serving.</dd></div><div class="term" data-term="one-hot vector"><dt>One-hot vector</dt><dd>A vector with one position per vocabulary entry: 1 for the observed value and 0 everywhere else. An embedding lookup typically uses the equivalent compact integer index.</dd></div><div class="term" data-term="online experiment"><dt>Online experiment</dt><dd>An experiment using live traffic to compare system behavior and outcomes.</dd></div><div class="term" data-term="out of vocabulary"><dt>Out of vocabulary</dt><dd>A value absent from a fitted vocabulary. Often abbreviated OOV and mapped to an unknown bucket or handled with hashing.</dd></div><div class="term" data-term="padding"><dt>Padding</dt><dd>Adding placeholders to make differently sized lists fit a batch representation. Placeholders are excluded using a mask or length.</dd></div><div class="term" data-term="pairwise ranking"><dt>Pairwise ranking</dt><dd>Training on a preference comparison between two candidates under a shared context.</dd></div><div class="term" data-term="parameters"><dt>Parameters</dt><dd>Adjustable numbers learned by the model, including weights and embedding vectors.</dd></div><div class="term" data-term="parquet"><dt>Parquet</dt><dd>A typed, column-oriented file format for table data, with support for nested and list-valued columns.</dd></div><div class="term" data-term="pctcvr"><dt>pCTCVR</dt><dd>A predicted probability of the joint click-and-conversion event for an impression context.</dd></div><div class="term" data-term="pctr"><dt>pCTR</dt><dd>Predicted click probability for the specified impression context and target definition.</dd></div><div class="term" data-term="pcvr"><dt>pCVR</dt><dd>Predicted conversion probability. State whether it is conditional on a click or on an impression.</dd></div><div class="term" data-term="point-in-time join"><dt>Point-in-time join</dt><dd>Selecting feature versions that were valid and available at the prediction cutoff.</dd></div><div class="term" data-term="pointwise training"><dt>Pointwise training</dt><dd>Training on one candidate&#x27;s target at a time. Its individual scores can later be used to rank multiple candidates.</dd></div><div class="term" data-term="pooling"><dt>Pooling</dt><dd>Combining multiple vectors into one summary, such as by a sum, average, or weighted sum.</dd></div><div class="term" data-term="position bias"><dt>Position bias</dt><dd>Observed behavior changes with where an item is displayed, in addition to its relevance.</dd></div><div class="term" data-term="positive example"><dt>Positive example</dt><dd>A label-1 row under a specified outcome rule; in retrieval, an interaction treated as relevant under the training objective.</dd></div><div class="term" data-term="prediction time"><dt>Prediction time</dt><dd>The time the scoring decision is made. It can precede the time an impression is displayed or logged.</dd></div><div class="term" data-term="query"><dt>Query</dt><dd>The information defining what is being requested. In retrieval it can include user history and context, not just typed search text.</dd></div><div class="term" data-term="ranking"><dt>Ranking</dt><dd>Scoring and ordering a set of candidate items.</dd></div><div class="term" data-term="recall at k"><dt>Recall at K</dt><dd>Of all items defined as relevant, the fraction appearing among the first K retrieved results.</dd></div><div class="term" data-term="recurrent model"><dt>Recurrent model</dt><dd>A model that updates a running summary as it processes successive events.</dd></div><div class="term" data-term="recurrent state"><dt>Recurrent state</dt><dd>A running summary updated as a model processes successive events.</dd></div><div class="term" data-term="request"><dt>Request</dt><dd>An opportunity at which the system is asked to choose recommendations or ads.</dd></div><div class="term" data-term="retrieval"><dt>Retrieval</dt><dd>Selecting a manageable candidate set from a much larger catalog.</dd></div><div class="term" data-term="sample probability"><dt>Sample probability</dt><dd>The probability q that an eligible row is retained by a sampling procedure.</dd></div><div class="term" data-term="sample weight"><dt>Sample weight</dt><dd>A multiplier determining a row&#x27;s contribution to the training or evaluation calculation.</dd></div><div class="term" data-term="schema"><dt>Schema</dt><dd>The defined structure, field names, types, and semantics of records.</dd></div><div class="term" data-term="selection bias"><dt>Selection bias</dt><dd>Observed examples differ systematically from the population of interest, for example because only previously shown items have response labels.</dd></div><div class="term" data-term="serving"><dt>Serving</dt><dd>Running a trained model on live inputs to produce predictions. Also called inference in this setting.</dd></div><div class="term" data-term="shape"><dt>Shape</dt><dd>The dimensions of an array. B × 5 means B rows, each with five entries.</dd></div><div class="term" data-term="sparse feature"><dt>Sparse feature</dt><dd>A categorical field whose conceptual one-hot vector is mostly zeros. An embedding model typically receives its compact integer index.</dd></div><div class="term" data-term="standard deviation"><dt>Standard deviation</dt><dd>A measurement of how widely values vary around their mean, commonly used when scaling numerical features.</dd></div><div class="term" data-term="surface"><dt>Surface</dt><dd>The page, feed, placement, or other product location where an item may be shown.</dd></div><div class="term" data-term="tensor"><dt>Tensor</dt><dd>A numerical array with a shape and data type. A vector is one-dimensional; a matrix has two dimensions.</dd></div><div class="term" data-term="test set"><dt>Test set</dt><dd>Held-out examples used for a final assessment after model and configuration choices.</dd></div><div class="term" data-term="token"><dt>Token</dt><dd>A discrete unit used by a text model, such as a word or part of a word.</dd></div><div class="term" data-term="truncation"><dt>Truncation</dt><dd>Keeping only a specified part of a list, such as the most recent L events.</dd></div><div class="term" data-term="two-tower model"><dt>Two-tower model</dt><dd>Separate models produce user/context and candidate vectors. A compatibility function such as a dot product supplies a retrieval score.</dd></div><div class="term" data-term="utc"><dt>UTC</dt><dd>Coordinated Universal Time, a worldwide time reference. Z at the end of a timestamp means UTC.</dd></div><div class="term" data-term="validation set"><dt>Validation set</dt><dd>Held-out examples used to compare settings or model versions before final evaluation.</dd></div><div class="term" data-term="vector"><dt>Vector</dt><dd>An ordered list of numbers, such as an embedding.</dd></div><div class="term" data-term="view-through conversion"><dt>View-through conversion</dt><dd>A conversion attributed to an impression without requiring a matching click.</dd></div><div class="term" data-term="vocabulary"><dt>Vocabulary</dt><dd>A defined set of categories and the mapping from each to an index.</dd></div><div class="term" data-term="weighted sum"><dt>Weighted sum</dt><dd>Multiply each value or vector by its assigned weight and add the results.</dd></div><div class="term" data-term="window"><dt>Window</dt><dd>A specified time interval, with a documented starting event and inclusive or exclusive endpoints.</dd></div></dl><h3>Check your understanding</h3><details><summary>Is an item that was never shown a negative CTR example?</summary><p>No. There is no observed response to that showing. Retrieval may use sampled unobserved items as contrasts, which is a different objective.</p></details><details><summary>Does item ID 100 have twice the meaning of item ID 50?</summary><p>No. IDs identify categories. They are embedding indices, not measurements.</p></details><details><summary>Can the current click appear in the history used to predict it?</summary><p>No. That puts the answer into the features and leaks future information.</p></details><details><summary>Is the label passed to the model at serving time?</summary><p>No. The model receives features. The outcome is not yet known.</p></details><details><summary>Can a one-hour-old impression be a final negative for a seven-day conversion target?</summary><p>No. Its conversion window is still open. Wait, mask it, or use a method that handles delayed outcomes.</p></details></section><div class="pagination"><button id="previous" type="button">← Previous</button><span id="page-title"></span><button id="next" type="button">Next →</button></div></div></div>
+<footer><p>Examples are synthetic unless explicitly attributed. Real samples link to their original files.</p><p><a href="GUIDE.md">Guide source</a> · <a href="https://github.com/qiaokan/ads-recommendation-data-reader">Source repository</a> · <a href="reviews/claude-review.md">Review scope</a></p></footer></main></body></html>

@@ -1,0 +1,438 @@
+[
+  {
+    "term": "A/B test",
+    "definition": "An online experiment that assigns traffic to alternative systems and compares outcomes. Marketplace interactions can require more careful experimental units than individual requests."
+  },
+  {
+    "term": "Attribution",
+    "definition": "A rule assigning a response, such as a click or conversion, to a particular earlier impression or click, including the eligible time window."
+  },
+  {
+    "term": "AUC",
+    "definition": "Area under the receiver operating characteristic curve. For fixed scores, it equals the chance a random positive outranks a random negative, counting ties as half."
+  },
+  {
+    "term": "Available time",
+    "definition": "When an event or feature value became accessible to the scoring system. It can be later than the time the event occurred."
+  },
+  {
+    "term": "Batch",
+    "definition": "A group of training examples processed together. B denotes the number of examples in a batch."
+  },
+  {
+    "term": "Bid",
+    "definition": "The advertiser's offer per billable event, such as a click. It is distinct from a product's price."
+  },
+  {
+    "term": "Binary cross-entropy",
+    "definition": "An error score for a binary label y and predicted probability p: \u2212[y ln(p) + (1\u2212y) ln(1\u2212p)]. Uses the natural logarithm."
+  },
+  {
+    "term": "Boolean",
+    "definition": "A logical value, either true or false. Often used for masks."
+  },
+  {
+    "term": "Calibration",
+    "definition": "Agreement between predicted probabilities and observed frequencies on the population being evaluated."
+  },
+  {
+    "term": "Candidate",
+    "definition": "An item being considered for recommendation or ad delivery."
+  },
+  {
+    "term": "Categorical feature",
+    "definition": "A value that identifies a category or entity rather than measuring a quantity. Item IDs and device classes are examples."
+  },
+  {
+    "term": "Causal sequence training",
+    "definition": "Training in which a prediction at a sequence position sees only its allowed earlier context, not future targets."
+  },
+  {
+    "term": "Click",
+    "definition": "A recorded interaction with a displayed item. Training labels need explicit rules for valid clicks, attribution, and duplicate events."
+  },
+  {
+    "term": "Concatenate",
+    "definition": "Join vectors end to end to make one longer vector."
+  },
+  {
+    "term": "Conditional probability",
+    "definition": "The chance of an event given specified information. P(A | B) means the probability of A given B."
+  },
+  {
+    "term": "Context",
+    "definition": "Information about the current opportunity, such as device, surface, time, and query."
+  },
+  {
+    "term": "Conversion",
+    "definition": "A downstream outcome such as a purchase or signup. The exact action and attribution rule must be specified."
+  },
+  {
+    "term": "CPC",
+    "definition": "Cost per click. An advertising payment arrangement in which a valid click is the billable event."
+  },
+  {
+    "term": "CSV",
+    "definition": "Comma-separated values, a text format for tables. Readers must preserve ID strings, missing values, and types deliberately."
+  },
+  {
+    "term": "CTR",
+    "definition": "Click-through rate. In this guide's binary impression setting: impressions with at least one valid attributed click divided by eligible impressions."
+  },
+  {
+    "term": "CVR",
+    "definition": "Conversion rate. Its denominator must be stated: clicked impressions, all impressions, or another defined eligible population."
+  },
+  {
+    "term": "Data dictionary",
+    "definition": "A specification of each field's meaning, type, units, allowed values, missing-value handling, and role."
+  },
+  {
+    "term": "Data leakage",
+    "definition": "Using information during training or evaluation that would not be available for the real prediction, such as the outcome being predicted."
+  },
+  {
+    "term": "Deduplication",
+    "definition": "Removing duplicate copies of the same event without merging distinct legitimate events."
+  },
+  {
+    "term": "Denominator",
+    "definition": "The quantity used as the divisor in a rate. Clicks per impression and conversions per click have different denominators."
+  },
+  {
+    "term": "Dense feature",
+    "definition": "Here, a numerical measurement supplied as a floating-point value. More generally, dense describes an array whose representation is not mostly omitted or zero."
+  },
+  {
+    "term": "DIN",
+    "definition": "Deep Interest Network, an Alibaba model that weights historical behaviors according to their relevance to a candidate. Basic weighted pooling alone does not capture order."
+  },
+  {
+    "term": "Dot product",
+    "definition": "Multiply matching coordinates of two equal-length vectors and add the products. For [1,2] and [3,4], the result is 1\u00d73 + 2\u00d74 = 11."
+  },
+  {
+    "term": "Embedding",
+    "definition": "A learned vector of numbers representing an entity or category."
+  },
+  {
+    "term": "Embedding table",
+    "definition": "A model parameter array whose rows are vectors selected by categorical indices. A shared vocabulary does not by itself imply a shared embedding table."
+  },
+  {
+    "term": "Encoder",
+    "definition": "A transformation or model that turns an input, such as text, an image, or an ID, into a numerical representation."
+  },
+  {
+    "term": "Encoding",
+    "definition": "Converting raw feature values into a defined numerical representation."
+  },
+  {
+    "term": "Epoch",
+    "definition": "One pass through the training examples. Training can make multiple passes."
+  },
+  {
+    "term": "Evaluation",
+    "definition": "Measuring a trained model on data not used for its parameter updates."
+  },
+  {
+    "term": "Feature",
+    "definition": "Information the model is allowed to use to make a prediction."
+  },
+  {
+    "term": "Feature hashing",
+    "definition": "Mapping values into a fixed number of integer buckets. Different values can collide in the same bucket."
+  },
+  {
+    "term": "Feedback loop",
+    "definition": "The model influences which items receive exposure; those exposures generate outcomes that influence later training."
+  },
+  {
+    "term": "Fitting",
+    "definition": "Learning parameters or preprocessing statistics from training data."
+  },
+  {
+    "term": "Float32",
+    "definition": "A commonly used 32-bit floating-point numerical type."
+  },
+  {
+    "term": "History",
+    "definition": "Interactions before the prediction cutoff. Its event order, availability rule, truncation, padding, and masks must be documented."
+  },
+  {
+    "term": "Impression",
+    "definition": "A logged showing of an item under a stated exposure definition. Logging an impression does not prove the person paid attention."
+  },
+  {
+    "term": "In-batch negative",
+    "definition": "An item from another example in a batch used as a contrasting candidate for the current user or context."
+  },
+  {
+    "term": "Index",
+    "definition": "An integer used to select a vocabulary entry or embedding row. Its size does not measure the importance or magnitude of an ID."
+  },
+  {
+    "term": "Inverse-probability weighting",
+    "definition": "Weighting a retained example by the reciprocal of its inclusion probability, under a specified sampling design."
+  },
+  {
+    "term": "Item",
+    "definition": "The entity being recommended: an ad, product, video, article, song, or other candidate."
+  },
+  {
+    "term": "Join",
+    "definition": "Combining records from tables using a specified relationship, such as a shared item or impression identifier."
+  },
+  {
+    "term": "JSON",
+    "definition": "A text format with named fields, objects, lists, numbers, booleans, and null values."
+  },
+  {
+    "term": "Label",
+    "definition": "The observed training target. It is separated from prediction inputs."
+  },
+  {
+    "term": "Label encoding",
+    "definition": "Mapping distinct categorical values to integer indices. The fitted mapping and unknown-value behavior must be preserved."
+  },
+  {
+    "term": "Label finalization",
+    "definition": "The point at which the target window and required log-arrival allowance have completed under the chosen policy."
+  },
+  {
+    "term": "Label mask",
+    "definition": "An indicator that a particular target is valid and should contribute to the corresponding training loss."
+  },
+  {
+    "term": "Listwise ranking",
+    "definition": "Training on a group of candidates belonging to one request, with labels or preferences interpreted within that group."
+  },
+  {
+    "term": "Log loss",
+    "definition": "Binary cross-entropy averaged over examples, possibly with defined weights."
+  },
+  {
+    "term": "Loss",
+    "definition": "A numerical measure of prediction error that the training procedure tries to reduce."
+  },
+  {
+    "term": "Mask",
+    "definition": "An array indicating which entries or labels are valid; padded entries must not act as real events."
+  },
+  {
+    "term": "Mean",
+    "definition": "The sum of values divided by their count; an average."
+  },
+  {
+    "term": "Metadata",
+    "definition": "Bookkeeping such as event IDs, timestamps, and schema versions. Metadata is not automatically a model feature."
+  },
+  {
+    "term": "Missing value",
+    "definition": "An unavailable value, distinct from a measured zero. A default plus a missing indicator can preserve the distinction."
+  },
+  {
+    "term": "Multi-task model",
+    "definition": "A model trained to predict multiple targets, such as click and conversion, using separate target definitions and validity masks."
+  },
+  {
+    "term": "Natural logarithm",
+    "definition": "The inverse of raising the number e (approximately 2.718) to a power. Written ln; used in the binary cross-entropy formula."
+  },
+  {
+    "term": "NDCG at K",
+    "definition": "Normalized discounted cumulative gain for the first K items: relevance with greater weight near the top, divided by an ideal ordering's score. Exact gain and discount formulas must be specified."
+  },
+  {
+    "term": "Negative example",
+    "definition": "A label-0 row under a specified outcome rule. In retrieval, a sampled negative is a contrast, not necessarily an observed rejection."
+  },
+  {
+    "term": "Neural network",
+    "definition": "A model made of layers of adjustable weighted computations and nonlinear functions."
+  },
+  {
+    "term": "Nonlinear function",
+    "definition": "A transformation whose output is not simply a constant times its input plus a constant; neural networks use such functions to learn more complex relationships."
+  },
+  {
+    "term": "Normalization",
+    "definition": "Transforming numerical values to a useful scale. The transformation and any fitted statistics must be consistent across training and serving."
+  },
+  {
+    "term": "One-hot vector",
+    "definition": "A vector with one position per vocabulary entry: 1 for the observed value and 0 everywhere else. An embedding lookup typically uses the equivalent compact integer index."
+  },
+  {
+    "term": "Online experiment",
+    "definition": "An experiment using live traffic to compare system behavior and outcomes."
+  },
+  {
+    "term": "Out of vocabulary",
+    "definition": "A value absent from a fitted vocabulary. Often abbreviated OOV and mapped to an unknown bucket or handled with hashing."
+  },
+  {
+    "term": "Padding",
+    "definition": "Adding placeholders to make differently sized lists fit a batch representation. Placeholders are excluded using a mask or length."
+  },
+  {
+    "term": "Pairwise ranking",
+    "definition": "Training on a preference comparison between two candidates under a shared context."
+  },
+  {
+    "term": "Parameters",
+    "definition": "Adjustable numbers learned by the model, including weights and embedding vectors."
+  },
+  {
+    "term": "Parquet",
+    "definition": "A typed, column-oriented file format for table data, with support for nested and list-valued columns."
+  },
+  {
+    "term": "pCTCVR",
+    "definition": "A predicted probability of the joint click-and-conversion event for an impression context."
+  },
+  {
+    "term": "pCTR",
+    "definition": "Predicted click probability for the specified impression context and target definition."
+  },
+  {
+    "term": "pCVR",
+    "definition": "Predicted conversion probability. State whether it is conditional on a click or on an impression."
+  },
+  {
+    "term": "Point-in-time join",
+    "definition": "Selecting feature versions that were valid and available at the prediction cutoff."
+  },
+  {
+    "term": "Pointwise training",
+    "definition": "Training on one candidate's target at a time. Its individual scores can later be used to rank multiple candidates."
+  },
+  {
+    "term": "Pooling",
+    "definition": "Combining multiple vectors into one summary, such as by a sum, average, or weighted sum."
+  },
+  {
+    "term": "Position bias",
+    "definition": "Observed behavior changes with where an item is displayed, in addition to its relevance."
+  },
+  {
+    "term": "Positive example",
+    "definition": "A label-1 row under a specified outcome rule; in retrieval, an interaction treated as relevant under the training objective."
+  },
+  {
+    "term": "Prediction time",
+    "definition": "The time the scoring decision is made. It can precede the time an impression is displayed or logged."
+  },
+  {
+    "term": "Query",
+    "definition": "The information defining what is being requested. In retrieval it can include user history and context, not just typed search text."
+  },
+  {
+    "term": "Ranking",
+    "definition": "Scoring and ordering a set of candidate items."
+  },
+  {
+    "term": "Recall at K",
+    "definition": "Of all items defined as relevant, the fraction appearing among the first K retrieved results."
+  },
+  {
+    "term": "Recurrent model",
+    "definition": "A model that updates a running summary as it processes successive events."
+  },
+  {
+    "term": "Recurrent state",
+    "definition": "A running summary updated as a model processes successive events."
+  },
+  {
+    "term": "Request",
+    "definition": "An opportunity at which the system is asked to choose recommendations or ads."
+  },
+  {
+    "term": "Retrieval",
+    "definition": "Selecting a manageable candidate set from a much larger catalog."
+  },
+  {
+    "term": "Sample probability",
+    "definition": "The probability q that an eligible row is retained by a sampling procedure."
+  },
+  {
+    "term": "Sample weight",
+    "definition": "A multiplier determining a row's contribution to the training or evaluation calculation."
+  },
+  {
+    "term": "Schema",
+    "definition": "The defined structure, field names, types, and semantics of records."
+  },
+  {
+    "term": "Selection bias",
+    "definition": "Observed examples differ systematically from the population of interest, for example because only previously shown items have response labels."
+  },
+  {
+    "term": "Serving",
+    "definition": "Running a trained model on live inputs to produce predictions. Also called inference in this setting."
+  },
+  {
+    "term": "Shape",
+    "definition": "The dimensions of an array. B \u00d7 5 means B rows, each with five entries."
+  },
+  {
+    "term": "Sparse feature",
+    "definition": "A categorical field whose conceptual one-hot vector is mostly zeros. An embedding model typically receives its compact integer index."
+  },
+  {
+    "term": "Standard deviation",
+    "definition": "A measurement of how widely values vary around their mean, commonly used when scaling numerical features."
+  },
+  {
+    "term": "Surface",
+    "definition": "The page, feed, placement, or other product location where an item may be shown."
+  },
+  {
+    "term": "Tensor",
+    "definition": "A numerical array with a shape and data type. A vector is one-dimensional; a matrix has two dimensions."
+  },
+  {
+    "term": "Test set",
+    "definition": "Held-out examples used for a final assessment after model and configuration choices."
+  },
+  {
+    "term": "Token",
+    "definition": "A discrete unit used by a text model, such as a word or part of a word."
+  },
+  {
+    "term": "Truncation",
+    "definition": "Keeping only a specified part of a list, such as the most recent L events."
+  },
+  {
+    "term": "Two-tower model",
+    "definition": "Separate models produce user/context and candidate vectors. A compatibility function such as a dot product supplies a retrieval score."
+  },
+  {
+    "term": "UTC",
+    "definition": "Coordinated Universal Time, a worldwide time reference. Z at the end of a timestamp means UTC."
+  },
+  {
+    "term": "Validation set",
+    "definition": "Held-out examples used to compare settings or model versions before final evaluation."
+  },
+  {
+    "term": "Vector",
+    "definition": "An ordered list of numbers, such as an embedding."
+  },
+  {
+    "term": "View-through conversion",
+    "definition": "A conversion attributed to an impression without requiring a matching click."
+  },
+  {
+    "term": "Vocabulary",
+    "definition": "A defined set of categories and the mapping from each to an index."
+  },
+  {
+    "term": "Weighted sum",
+    "definition": "Multiply each value or vector by its assigned weight and add the results."
+  },
+  {
+    "term": "Window",
+    "definition": "A specified time interval, with a documented starting event and inclusive or exclusive endpoints."
+  }
+]
