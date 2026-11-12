@@ -43,6 +43,18 @@ Alternatively set PLAYWRIGHT_MODULE to the absolute path of an existing Playwrig
 
 ## Deploy
 
-Vercel serves the committed dist directory directly, as configured in vercel.json. There is no build command or install command. Never commit .vercel state, credentials, or environment files.
+The Vercel project is not connected to this GitHub repository, so pushing to main does not update the live site. Deploy manually from the repository root with the Vercel CLI after rebuilding and committing:
+
+```sh
+vercel deploy --prod
+```
+
+The first run in a fresh checkout asks you to link the folder to the ads-recommendation-data-reader project, which writes a local .vercel directory. Linking can also write a .env.local token file and append to .gitignore; neither is needed for this static site, so delete .env.local and revert the .gitignore change. Vercel uploads the dist directory as configured in vercel.json, with no build or install command. Confirm the release by running the browser checks against production:
+
+```sh
+READER_URL=https://ads-recommendation-data-reader.vercel.app node tests/reader.test.cjs
+```
+
+To deploy on every push instead, connect the repository under the project's Git settings in the Vercel dashboard, then update this section. Never commit .vercel state, credentials, or environment files.
 
 The original prose and teaching examples are provided for learning. Linked datasets, papers, and third-party code retain their own licenses. No full external dataset is bundled.
