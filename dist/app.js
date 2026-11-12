@@ -46,14 +46,48 @@
   toggle.addEventListener('click', () => { const open = menu.classList.toggle('open'); toggle.setAttribute('aria-expanded', String(open)); });
   document.getElementById('print-guide').addEventListener('click', () => window.print());
   const terms = [...document.querySelectorAll('.term')];
+  const termList = document.getElementById('glossary-list');
   const search = document.getElementById('glossary-search');
+  const categoryButtons = [...document.querySelectorAll('.category-filter')];
+  let activeCategory = '';
   function filterTerms() {
     const query = search.value.trim().toLowerCase();
     let count = 0;
-    terms.forEach(term => { term.hidden = !term.textContent.toLowerCase().includes(query); if (!term.hidden) count++; });
-    document.getElementById('term-count').textContent = `${count} of ${terms.length} definitions`;
+    const nameMatches = [];
+    const others = [];
+    terms.forEach(term => {
+      const inCategory = !activeCategory || term.dataset.category === activeCategory;
+      const nameMatch = term.dataset.term.includes(query);
+      term.hidden = !inCategory || !(nameMatch || term.textContent.toLowerCase().includes(query));
+      (query && nameMatch ? nameMatches : others).push(term);
+      if (!term.hidden) count++;
+    });
+    // While searching, list entries whose name matches before entries that only mention the query.
+    // Reorder the DOM itself so keyboard and screen-reader order match the visual order.
+    termList.append(...nameMatches, ...others);
+    const scope = activeCategory ? ` in ${activeCategory}` : '';
+    document.getElementById('term-count').textContent = `${count} of ${terms.length} definitions${scope}`;
   }
+  function setCategory(category) {
+    activeCategory = category;
+    categoryButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.category === category)));
+    filterTerms();
+  }
+  categoryButtons.forEach(button => button.addEventListener('click', () => setCategory(button.dataset.category)));
   search.addEventListener('input', filterTerms); filterTerms();
+  function revealTerm(scroll) {
+    const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (!target || !target.classList.contains('term')) return;
+    if (target.hidden) { search.value = ''; setCategory(''); }
+    if (scroll) target.scrollIntoView({block: 'start'});
+  }
+  revealTerm(true);
+  // The browser's own anchor scroll can land after this script on first load; re-apply once layout settles.
+  window.addEventListener('load', () => requestAnimationFrame(() => revealTerm(true)));
+  window.addEventListener('hashchange', () => revealTerm(true));
+  document.querySelectorAll('.term-related a').forEach(link => link.addEventListener('click', () => {
+    if (link.hash === location.hash) revealTerm(true);
+  }));
   const outcome = document.getElementById('outcome');
   const representation = document.getElementById('representation');
   const metadata = {impression_id:'imp_101', request_id:'req_10', prediction_time:'2026-11-01T09:59:58Z', shown_at:'2026-11-01T10:00:00Z', label_finalized_at:'2026-11-01T10:35:00Z'};

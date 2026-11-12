@@ -29,7 +29,7 @@ python3 -m venv .venv
 .venv/bin/python scripts/build.py
 ```
 
-GUIDE.md and GLOSSARY.json are the content sources. scripts/build.py builds the HTML and copies downloadable content and review files. The CSS and browser JavaScript live in dist/styles.css and dist/app.js. Rebuild after editing guide, glossary, review files, or the template.
+GUIDE.md and GLOSSARY.json are the content sources. Each glossary entry has `term`, `category`, a one-line `definition`, a longer `details` explanation, a worked `example`, an optional `pitfall`, and `related` terms that must match other entries' `term` exactly (the browser checks enforce this). scripts/build.py builds the HTML and copies downloadable content and review files. The CSS and browser JavaScript live in dist/styles.css and dist/app.js. Rebuild after editing guide, glossary, review files, or the template.
 
 ## Browser checks
 
