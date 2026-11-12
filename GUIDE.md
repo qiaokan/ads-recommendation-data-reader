@@ -104,7 +104,7 @@ A **request** asks the system to choose recommendations. The model scores req_10
 
 For this example, assume a 30-minute click window starting at shown_at, with the start included and end excluded. Allow another five minutes for click logs to arrive; both labels are final at 10:35. A **positive** example has label 1; a **negative** example has label 0. The valid click at 10:00:05 makes imp_101 positive. With no valid attributed click in its window, imp_102 is negative after finalization. These durations are teaching assumptions, not universal rules. Multiple valid clicks on one impression still produce one binary label.
 
-**Attribution** is the rule assigning an outcome to an impression or click. **Deduplication** removes repeated copies of the same event; it must not erase distinct showings.
+**Attribution** is the rule assigning an outcome to an impression or click. Here a shared impression identifier makes it simple; the chapter on recommendation tasks explains how ad platforms attribute conversions that happen later on another website or app. **Deduplication** removes repeated copies of the same event; it must not erase distinct showings.
 
 Join response events using an impression identifier or an explicitly defined attribution rule. Joining on user ID and item ID alone can attach one click to several different showings.
 
@@ -429,6 +429,80 @@ Multiplying pCTR by an already impression-level conversion probability counts th
 
 A multi-task record can carry click, conversion, and watch-time labels. Some targets are undefined for some rows; use explicit validity masks rather than silently treating every missing target as zero.
 
+## How attribution is done in practice
+
+In the worked example, attribution was trivial: the click record carried the same `impression_id` as the impression. Conversions are harder. A purchase usually happens later, often on the advertiser's own website or app, and the person may have seen or clicked several ads first. Ad platforms solve this in three steps, and each step changes what your conversion label means:
+
+1. **Link** the conversion to earlier ad interactions.
+2. **Filter** those interactions by time windows.
+3. **Assign credit** when more than one interaction qualifies.
+
+### Step 1: Linking a conversion to ad interactions
+
+The conversion and the ad interaction are logged by different systems, so something must connect them. The common mechanisms are:
+
+| Mechanism | What connects the two events | Documented example |
+| --- | --- | --- |
+| Click identifier | The ad platform adds a unique ID to the landing-page URL on each click. The advertiser stores it with the lead or order and sends it back with the conversion. | Google's GCLID, used in [offline conversion imports](https://support.google.com/google-ads/answer/7012522) |
+| Server event with customer information | The advertiser's server sends the conversion with hashed customer details and any stored click ID. The platform matches them to its own users. | Meta's [Conversions API](https://developers.facebook.com/docs/marketing-api/conversions-api/) |
+| On-device attribution | The phone's operating system records ad impressions, decides the winner itself, and later sends the ad network a delayed report without a user identifier. | Apple's [AdAttributionKit](https://developer.apple.com/documentation/adattributionkit/receiving-ad-attributions-and-postbacks) |
+
+Concretely:
+
+- **Google click identifier.** With auto-tagging, Google adds a GCLID to each ad click's URL. The advertiser's page saves it, for example in a cookie, and attaches it to the lead record. When the lead later becomes a sale, the advertiser uploads the GCLID, the conversion name, and the conversion time. Depending on the import source, the click must be less than 14 or 90 days before the conversion.
+- **Meta Conversions API.** Contact fields such as email and phone must be SHA-256 hashed before sending. The click ID travels in the `fbc` value, which embeds the `fbclid` URL parameter. The same purchase often arrives twice, once from the browser pixel and once from the server. Meta deduplicates the pair when both carry the same `event_id` and event name and arrive within 48 hours of the first.
+- **Apple AdAttributionKit.** The device keeps qualifying impressions and picks one winning ad network after an install. Up to five other ad networks can receive a non-winning report. The winning network learns about the conversion through a postback, a signed report sent at least 24 to 48 hours after the event. Apple states that the postback contains no user- or device-specific data. It carries conversion values set by the advertised app, with less detail when too few people share the same values, a rule Apple calls crowd anonymity.
+
+Chrome's Privacy Sandbox offered a browser-based equivalent, the Attribution Reporting API. Google [announced its retirement](https://privacysandbox.google.com/blog/update-on-plans-for-privacy-sandbox-technologies) on October 17, 2025.
+
+Linking is never complete. A conversion without a stored click ID or matchable customer details cannot be attributed. In training data, such a row looks like "no attributed conversion" even though a sale happened.
+
+### Step 2: Windows decide which interactions qualify
+
+A **lookback window**, also called a conversion window, is the period after an ad interaction during which a conversion can be credited to it. Windows are platform settings, not facts about users:
+
+| Platform | Click-through | View-through | Other |
+| --- | --- | --- | --- |
+| [Google Ads](https://support.google.com/google-ads/answer/3123169) | Default 30 days; 1 to 90 days depending on conversion source | Default 1 day; up to 30 days | Engaged-view for video: default 3 days |
+| [Meta](https://www.facebook.com/business/help/2198119873776795) | 1 or 7 days after a link click | 1 day after an impression | Engage-through: 1 day after a non-link click or a 5-second video play |
+| [Apple AdAttributionKit](https://developer.apple.com/documentation/adattributionkit/receiving-ad-attributions-and-postbacks) | 30 days from ad tap to install | 24 hours from ad view to install | First conversion value update within 60 days of install |
+
+Google states that a conversion after its window is not recorded, and a window change applies only to future conversions. If your label claims to match platform-reported conversions, it must use the same anchor, length, and interaction type.
+
+### Step 3: Credit rules when several interactions qualify
+
+Suppose, in an invented journey, U7 clicks shoe ad A42 on November 1, sees a display ad for the same store on November 3 without clicking, clicks a search ad for the store on November 4, and buys on November 5. Both clicks fall inside a 30-day click-through window. The view happened two days before the purchase, so a 1-day view-through window excludes it. Different rules then divide the one conversion like this:
+
+| Rule | A42 click (Nov 1) | Display view (Nov 3) | Search click (Nov 4) |
+| --- | --- | --- | --- |
+| Last click | 0 | 0 (outside window) | 1 |
+| First click | 1 | 0 (outside window) | 0 |
+| Linear | 0.5 | 0 (outside window) | 0.5 |
+| Data-driven | Learned share | 0 (outside window) | Learned share |
+
+With a 3-day view-through window instead, the view would qualify, and linear credit would become one third each. The window and the credit rule interact.
+
+- **Last click** gives all credit to the last-clicked ad. Criteo's attribution paper calls last click within 30 days the industry standard; see [Diemert et al., 2017](https://arxiv.org/abs/1707.06409).
+- **Rules-based multi-touch models** (first click, linear, time decay, and position-based) split credit by fixed formulas. Google's [attribution models page](https://support.google.com/google-ads/answer/6259715) says these four are no longer supported; conversion actions using them were upgraded to data-driven.
+- **Data-driven attribution** learns credit from data and is Google's default for most conversion actions. Google's [description](https://support.google.com/google-ads/answer/6394265) says it compares the paths of customers who convert to the paths of customers who do not, and recommends at least 200 conversions and 2,000 ad interactions in 30 days. A published academic basis for this family is the Shapley value from cooperative game theory, applied to advertising channels by [Dalessandro et al., 2012](https://doi.org/10.1145/2351356.2351363), building on Shao and Li's 2011 KDD paper on data-driven multi-touch attribution.
+- **Incremental attribution** asks a different question: would this conversion have happened without the ad? Meta's standard attribution credits conversions within the chosen windows, while its incremental option optimizes for conversions that models predict were caused by the ad.
+
+Counting is a separate setting. Google's [counting options](https://support.google.com/google-ads/answer/3438531) count either every conversion after an ad interaction or only one conversion per click.
+
+Each platform attributes using only the interactions it can see and its own rules. Two platforms can therefore both claim the same purchase, and their totals need not add up to the advertiser's actual orders.
+
+### What this means for your training labels
+
+Criteo's public [Attribution Modeling for Bidding dataset](https://ailab.criteo.com/criteo-attribution-modeling-bidding-dataset/) shows the distinction in real data. Each of its 16.5 million rows is one impression with two separate targets. `conversion` is 1 if any conversion occurred in the 30 days after the impression, whether or not this impression was the last click. `attribution` is 1 only if the advertiser attributed that conversion to Criteo. Fields such as `click_pos`, `click_nb`, and `time_since_last_click` describe the click path.
+
+When you build conversion labels:
+
+- **Choose the target explicitly.** "Any conversion within N days of this impression" and "conversion credited to this impression under rule R" are different labels with different rates.
+- **Version the attribution definition.** Record the linking method, windows, credit rule, and counting setting in the data dictionary. Platform defaults change over time, and mixing data from different rules changes what label 1 means.
+- **Expect late and missing labels.** Conversions can take place long after the impression; [Chapelle, 2014](https://doi.org/10.1145/2623330.2623634) reports delays of up to a month in display advertising. Offline imports and on-device postbacks add reporting delay on top. Set label finalization after both the window and the reporting delay.
+- **Treat fractional credit as a modeling decision.** A data-driven share such as 0.4 is not an observed 0/1 outcome. If you train on it, document whether it is a regression target, a sample weight, or thresholded into a binary label.
+- **Do not let attribution leak into features.** A field such as `click_pos` or the final credited touchpoint is computed after the conversion. Keep it for labeling and analysis, not as a prediction input.
+
 # Labels sampling and evaluation
 
 ## A negative label needs an observation rule
@@ -543,6 +617,11 @@ The published samples and the invented worked example serve different purposes. 
 | [TensorFlow ranking tutorial](https://www.tensorflow.org/recommenders/examples/basic_ranking) | Explicit rating targets |
 | [Google on imbalanced datasets](https://developers.google.com/machine-learning/crash-course/overfitting/imbalanced-datasets) | Sampling and weights |
 | [Google View from the Trenches](https://research.google/pubs/ad-click-prediction-a-view-from-the-trenches/) | Practical probability prediction and calibration |
+| [Google Ads conversion windows](https://support.google.com/google-ads/answer/3123169) and [attribution models](https://support.google.com/google-ads/answer/6259715) | Lookback windows, last click, and data-driven credit |
+| [Meta attribution settings](https://www.facebook.com/business/help/2198119873776795) | Click-through, view-through, engage-through, and incremental attribution |
+| [Apple AdAttributionKit](https://developer.apple.com/documentation/adattributionkit) | On-device app-install attribution and postbacks |
+| [Criteo attribution dataset](https://ailab.criteo.com/criteo-attribution-modeling-bidding-dataset/) | Real rows with separate conversion and attribution labels |
+| [Chapelle, Modeling delayed feedback](https://doi.org/10.1145/2623330.2623634) | Conversion labels that arrive late |
 
 For your first exercise, inspect a few rows of the Criteo sample and follow the numerical and categorical transformations in its script. Then inspect the DIN demo and identify the candidate, valid history entries, padding, and label. After that, build the invented impression example above in a small dataset of your own.
 

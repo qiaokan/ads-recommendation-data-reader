@@ -72,15 +72,15 @@
     "term": "Attribution",
     "category": "Logs and joins",
     "definition": "The rule that decides which earlier impression or click gets credit for a later outcome such as a click or purchase, and within what time window.",
-    "details": "Outcomes are logged separately from the impressions that may have caused them, so something has to connect them. An attribution rule states which events are eligible (for example, only clicks on the same impression), how long after the impression an outcome still counts, and what happens when several impressions could claim the same outcome. The label of every training row depends on this rule, so it must be written down and applied the same way everywhere.",
+    "details": "Outcomes are logged separately from the impressions that may have caused them, so something has to connect them. An attribution rule states which events are eligible (for example, only clicks on the same impression), how long after the impression an outcome still counts, and what happens when several impressions could claim the same outcome. The label of every training row depends on this rule, so it must be written down and applied the same way everywhere. In ads, conversions usually happen later on the advertiser's own site or app, so platforms first link the conversion to ad interactions (click identifiers, server events with hashed customer details, or on-device reports), then keep only interactions inside lookback windows, then split credit with a rule such as last click or data-driven.",
     "example": "Rule: a click counts for an impression if it carries the same impression_id and arrives within 30 minutes of shown_at. The click at 10:00:05 on imp_101 qualifies, so imp_101 gets label 1.",
     "pitfall": "Matching outcomes only by user_id and item_id can credit one click to several separate showings of the same ad.",
     "related": [
       "Window",
-      "Click",
-      "Conversion",
+      "Click identifier",
+      "Last-click attribution",
+      "Data-driven attribution",
       "View-through conversion",
-      "Join",
       "Label"
     ]
   },
@@ -281,6 +281,20 @@
       "Invalid click",
       "Deduplication",
       "Window"
+    ]
+  },
+  {
+    "term": "Click identifier",
+    "category": "Ads and business",
+    "definition": "A unique ID an ad platform adds to the landing-page URL when someone clicks an ad, so a later conversion can be linked back to that click.",
+    "details": "The advertiser's site saves the ID, for example in a cookie, and stores it with the lead or order. When the conversion happens, possibly days later and outside the ad platform, the advertiser sends the ID back with the conversion time. The platform then finds the original click. Google calls its identifier the GCLID; Meta's click ID appears as the fbclid URL parameter and inside the fbc value.",
+    "example": "U7 clicks a search ad and lands on the store's page with a GCLID in the URL. The page saves it; when U7's lead becomes a sale, the store uploads that GCLID with the sale time and Google credits the click.",
+    "pitfall": "If the landing page drops the ID, or the user declines storage, the conversion cannot be linked. It then looks like 'no attributed conversion' even though a sale happened.",
+    "related": [
+      "Attribution",
+      "Server-side conversion event",
+      "Join",
+      "Identifier"
     ]
   },
   {
@@ -544,6 +558,20 @@
     ]
   },
   {
+    "term": "Data-driven attribution",
+    "category": "Ads and business",
+    "definition": "Multi-touch attribution where the credit split is learned from data rather than fixed by a formula.",
+    "details": "Google describes its data-driven model as comparing the paths of customers who convert with the paths of those who do not, to estimate each interaction's contribution. It is Google's default for most conversion actions, and Google recommends at least 200 conversions and 2,000 ad interactions in 30 days. Academic work in this family uses the Shapley value to divide credit among channels.",
+    "example": "Instead of 0.5 and 0.5, a data-driven model might give U7's earlier A42 click 0.3 and the later search click 0.7, because paths containing that search click convert much more often.",
+    "pitfall": "Fractional credit is an estimate, not an observed outcome. If you use it as a training target, document how.",
+    "related": [
+      "Multi-touch attribution",
+      "Shapley value",
+      "Last-click attribution",
+      "Attribution"
+    ]
+  },
+  {
     "term": "Deduplication",
     "category": "Logs and joins",
     "definition": "Removing extra copies of the same logged event, while keeping genuinely separate events that merely look alike.",
@@ -717,6 +745,18 @@
       "Padding",
       "Preprocessing",
       "Training-serving skew"
+    ]
+  },
+  {
+    "term": "Engaged-view conversion",
+    "category": "Ads and business",
+    "definition": "A conversion credited to a video ad after the person watched a meaningful part of it without clicking.",
+    "details": "Platforms define the engagement threshold and window themselves. Google Ads has an engaged-view window with a 3-day default. Meta's engage-through setting counts conversions within 1 day of a non-link click, or of a video play of at least 5 seconds (or 97% of a shorter video).",
+    "example": "U7 watches 10 seconds of a shoe video ad, does not click, and buys the next day. Under a 1-day engage-through setting, the video ad gets credit.",
+    "related": [
+      "View-through conversion",
+      "Window",
+      "Attribution"
     ]
   },
   {
@@ -971,6 +1011,18 @@
     ]
   },
   {
+    "term": "Incremental attribution",
+    "category": "Ads and business",
+    "definition": "Crediting an ad only for conversions it is estimated to have caused, rather than every conversion that followed it within a window.",
+    "details": "Window-based attribution credits a conversion that would have happened anyway, for example a loyal customer who was going to buy regardless. Incremental approaches try to estimate the causal effect. Meta offers an incremental attribution model that optimizes for conversions its models predict were caused by the ad.",
+    "example": "U7 was already on the way to buy the shoes; an ad shown the same morning gets window-based credit but little incremental credit.",
+    "related": [
+      "Attribution",
+      "A/B test",
+      "Data-driven attribution"
+    ]
+  },
+  {
     "term": "Index",
     "category": "Features and encoding",
     "definition": "An integer that selects an entry in a vocabulary or a row in an embedding table.",
@@ -1153,6 +1205,19 @@
     ]
   },
   {
+    "term": "Last-click attribution",
+    "category": "Ads and business",
+    "definition": "A credit rule that gives 100% of a conversion to the last ad clicked before it.",
+    "details": "Last click is simple and easy to audit, and Criteo's attribution research describes last click within 30 days as the industry standard. It ignores earlier clicks and all views, so ads that introduce a product early in a journey get no credit. Google Ads still offers last click alongside data-driven attribution.",
+    "example": "U7 clicks ad A42 on November 1 and a search ad on November 4, then buys on November 5. Last click gives the search ad credit 1 and A42 credit 0.",
+    "related": [
+      "Attribution",
+      "Multi-touch attribution",
+      "Data-driven attribution",
+      "Window"
+    ]
+  },
+  {
     "term": "Layer",
     "category": "Models and training",
     "definition": "One stage of computation in a neural network, usually a weighted combination of its inputs followed by a nonlinear function.",
@@ -1322,6 +1387,19 @@
       "pCTR",
       "pCVR",
       "Watch time"
+    ]
+  },
+  {
+    "term": "Multi-touch attribution",
+    "category": "Ads and business",
+    "definition": "Any credit rule that splits one conversion among several ad interactions instead of giving it all to one.",
+    "details": "Rules-based versions use fixed formulas: first click (all to the first), linear (equal shares), time decay (more to recent interactions), and position-based (more to the first and last). Google Ads no longer supports those four and moved affected conversion actions to data-driven attribution, which learns the split from data.",
+    "example": "Two qualifying clicks under linear attribution each receive 0.5 of the conversion; if a qualifying view is added, each receives one third.",
+    "related": [
+      "Last-click attribution",
+      "Data-driven attribution",
+      "Shapley value",
+      "Attribution"
     ]
   },
   {
@@ -1677,6 +1755,20 @@
     ]
   },
   {
+    "term": "Postback",
+    "category": "Ads and business",
+    "definition": "A report sent to an ad network after an attributed conversion, telling it that one of its ads won credit.",
+    "details": "In mobile app advertising, the phone's operating system can decide attribution on the device and send the ad network a postback later. Apple's AdAttributionKit sends signed postbacks at least 24 to 48 hours after the event; Apple states they contain no user- or device-specific data. One ad network receives the winning postback, and for installs up to five others can receive non-winning ones.",
+    "example": "U7 taps an app-install ad and installs within 30 days. A day or two later the ad network receives a postback saying its ad won, with a conversion value set by the app, but no information about who U7 is.",
+    "pitfall": "Postbacks arrive late and without user identity, so they cannot be joined to individual impression rows the way a click identifier can.",
+    "related": [
+      "Attribution",
+      "Window",
+      "Delayed feedback",
+      "Click identifier"
+    ]
+  },
+  {
     "term": "Prediction",
     "category": "Basics",
     "definition": "The model's output for one input, such as an estimated click probability for one impression.",
@@ -1974,6 +2066,19 @@
     ]
   },
   {
+    "term": "Server-side conversion event",
+    "category": "Ads and business",
+    "definition": "A conversion sent from the advertiser's own server to the ad platform, rather than reported by a script running in the user's browser.",
+    "details": "Server events can include information the browser does not have, such as offline sales, and survive browser restrictions. To identify the person, they carry hashed customer details (for example SHA-256 hashed email or phone) and any stored click identifier. When the same purchase is also reported by a browser pixel, the two reports must be deduplicated.",
+    "example": "Meta's Conversions API deduplicates a pixel event and a server event for the same purchase when both carry the same event_id and event name and arrive within 48 hours of the first.",
+    "related": [
+      "Click identifier",
+      "Deduplication",
+      "Attribution",
+      "Conversion"
+    ]
+  },
+  {
     "term": "Serving",
     "category": "Basics",
     "definition": "Running a trained model on live requests to produce predictions; also called inference.",
@@ -1996,6 +2101,17 @@
       "Tensor",
       "Dimension",
       "Batch"
+    ]
+  },
+  {
+    "term": "Shapley value",
+    "category": "Math and notation",
+    "definition": "A method from cooperative game theory for dividing a shared result fairly among participants, by averaging each one's added contribution over every order in which participants could join.",
+    "details": "In attribution, the 'participants' are ad channels or touchpoints and the 'result' is the conversion probability. A channel's Shapley value is its average increase in conversion probability when added to every possible subset of the other channels. Dalessandro and colleagues (2012) applied it to advertising attribution.",
+    "example": "If no ads give a 0% conversion rate, search alone gives 2%, display alone 1%, and both together 4%, search's Shapley share is the average of 2% (added first) and 4% − 1% = 3% (added second), which is 2.5 points. Display gets 1.5 points; the shares sum to the 4% total.",
+    "related": [
+      "Data-driven attribution",
+      "Multi-touch attribution"
     ]
   },
   {
@@ -2235,11 +2351,12 @@
     "term": "View-through conversion",
     "category": "Ads and business",
     "definition": "A conversion credited to an impression even though the user never clicked it.",
-    "details": "Someone may see an ad, not click, and buy later. Some attribution rules credit that impression. Such conversions are not covered by pCTR × post-click pCVR, which only counts click-attributed conversions.",
+    "details": "Someone may see an ad, not click, and buy later. Some attribution rules credit that impression. Such conversions are not covered by pCTR × post-click pCVR, which only counts click-attributed conversions. Platforms keep view-through windows short: Google Ads defaults to 1 day, Meta offers 1 day, and Apple's AdAttributionKit gives 24 hours from an ad view to an install.",
     "example": "U9 sees ad A42 at 20:00 without clicking and buys the shoes the next morning. Under a 1-day view-through rule, that impression gets conversion credit.",
     "related": [
       "Conversion",
       "Attribution",
+      "Engaged-view conversion",
       "pCTCVR"
     ]
   },
@@ -2298,13 +2415,14 @@
     "term": "Window",
     "category": "Labels and sampling",
     "definition": "A defined time interval, anchored to a specific event, during which an outcome counts toward a label.",
-    "details": "A window needs four things: the anchor event (impression shown, click time), the length, whether each endpoint is included, and the allowance for late logs before the label is final. Different targets usually have different windows.",
+    "details": "A window needs four things: the anchor event (impression shown, click time), the length, whether each endpoint is included, and the allowance for late logs before the label is final. Different targets usually have different windows. In ads reporting, the window after an ad interaction is also called a lookback or conversion window. Platforms set defaults: Google Ads uses 30 days for clicks and 1 day for views unless changed.",
     "example": "Click window: starts at shown_at (10:00:00, included), lasts 30 minutes (10:30:00 excluded), plus a 5-minute log allowance, so the label is final at 10:35.",
     "related": [
       "Half-open interval",
       "Attribution",
       "Label finalization",
-      "Immature label"
+      "Immature label",
+      "Engaged-view conversion"
     ]
   }
 ]
